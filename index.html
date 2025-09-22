@@ -103,7 +103,7 @@
     </style>
   </head>
   <body>
-    <h1>Segment & Sub-segment Matching with Final Outputs</h1>
+    <h1>Segment & Sub-segment Matching with Separate Final Outputs</h1>
 
     <div class="input-section">
       <textarea
@@ -150,10 +150,6 @@
         <tr>
           <td>SME&amp;C - SMB Public Sector</td>
           <td>New Mapped to “SME&amp;C Public Sector” Summary Segment</td>
-        </tr>
-        <tr>
-          <td>High Value Individual</td>
-          <td>Special Segment</td>
         </tr>
         <tr>
           <td>Major Commercial</td>
@@ -288,6 +284,7 @@
         txt.innerHTML = text;
         return txt.value;
       }
+
       function normalizeText(text) {
         if (!text) return "";
         return decodeHtmlEntities(text)
@@ -295,21 +292,25 @@
           .trim()
           .toLowerCase();
       }
+
       function extractInParenthesesOrOriginal(text) {
         const matches = [...text.matchAll(/\(([^)]+)\)/g)];
         return matches.length
           ? matches[matches.length - 1][1].trim()
           : text.trim();
       }
+
       function extractTextInQuotes(text) {
         const match = text.match(/[“"”](.*?)[”"]/);
         return match ? match[1].trim() : null;
       }
+
       function clearHighlights(tbody) {
         for (const row of tbody.rows) {
           row.classList.remove("highlight-name", "mapped", "renamed", "remap");
         }
       }
+
       function getStatus(description) {
         const descLower = description.toLowerCase();
         if (descLower.includes("mapped"))
@@ -320,6 +321,7 @@
           return { className: "remap", type: "Remap" };
         return { className: "", type: "Unknown" };
       }
+
       function findRemapTargetName(remapRow, data) {
         const desc = remapRow.description.toLowerCase();
         const remapIdx = desc.indexOf("remap to");
@@ -334,6 +336,7 @@
         );
         return renamedRow ? renamedRow.nameOriginal : null;
       }
+
       function processInput() {
         const rawInput = document.getElementById("userInput").value.trim();
         const inputListContainer = document.getElementById("inputList");
@@ -345,17 +348,22 @@
           document.getElementById("segmentsTable").tBodies[0];
         const subSegmentsBody =
           document.getElementById("subSegmentsTable").tBodies[0];
-        clearHighlights(subSegmentsBody);
-        clearHighlights(segmentsBody);
+
         inputListContainer.innerHTML = "";
         finalSubSegOutput.innerHTML = "";
         finalSegOutput.innerHTML = "";
+        clearHighlights(subSegmentsBody);
+        clearHighlights(segmentsBody);
+
         if (!rawInput) {
           inputListContainer.innerHTML = "<p>No input provided.</p>";
           return;
         }
+
         const rawItems = rawInput.split(",").map((i) => i.trim());
         const extractedValues = rawItems.map(extractInParenthesesOrOriginal);
+
+        // Prepare segment data
         const segmentsData = Array.from(segmentsBody.rows).map((row) => {
           const nameOriginal = row.cells[0].textContent;
           const name = normalizeText(nameOriginal);
@@ -371,6 +379,8 @@
             status,
           };
         });
+
+        // Prepare sub-segment data
         const subSegmentsData = Array.from(subSegmentsBody.rows).map((row) => {
           const nameOriginal = row.cells[0].textContent;
           const name = normalizeText(nameOriginal);
@@ -386,12 +396,21 @@
             status,
           };
         });
+
         const resultUl = document.createElement("ul");
+        finalSubSegOutput.innerHTML = "";
+        finalSegOutput.innerHTML = "";
+
+        // Track final outputs by type
         const finalSubSegResults = [];
         const finalSegResults = [];
+
         for (const val of extractedValues) {
           const normVal = normalizeText(val);
+
+          // Try matching sub-segment first
           let matchSub = subSegmentsData.find((s) => s.name === normVal);
+
           if (!matchSub) {
             matchSub = subSegmentsData.find(
               (s) =>
@@ -399,7 +418,10 @@
                 normalizeText(s.descriptionQuote) === normVal
             );
           }
+
+          // Try matching segment
           let matchSeg = segmentsData.find((s) => s.name === normVal);
+
           if (!matchSeg) {
             matchSeg = segmentsData.find(
               (s) =>
@@ -407,40 +429,50 @@
                 normalizeText(s.descriptionQuote) === normVal
             );
           }
+
           const li = document.createElement("li");
           li.textContent = val;
+
           if (matchSub) {
             matchSub.rowElem.classList.add(
               "highlight-name",
               matchSub.status.className
             );
             li.classList.add(matchSub.status.className);
+
             const descSpan = document.createElement("span");
             descSpan.classList.add("found-description");
             descSpan.textContent = " (Sub-segment) – " + matchSub.description;
             li.appendChild(descSpan);
           }
+
           if (matchSeg) {
             matchSeg.rowElem.classList.add(
               "highlight-name",
               matchSeg.status.className
             );
+
             const descSpan = document.createElement("span");
             descSpan.classList.add("found-description");
             descSpan.textContent = " (Segment) – " + matchSeg.description;
             li.appendChild(descSpan);
           }
+
           if (!matchSub && !matchSeg) {
             li.textContent += " – No match found";
           }
+
           resultUl.appendChild(li);
-          // Final sub-segment output (only name)
+
+          // Build final sub-segment output
           if (matchSub) {
             let finalText = "";
             switch (matchSub.status.type) {
               case "Mapped":
-              case "Renamed":
                 finalText = matchSub.nameOriginal;
+                break;
+              case "Renamed":
+                finalText = matchSub.nameOriginal; // as requested
                 break;
               case "Remap":
                 const targetName = findRemapTargetName(
@@ -456,13 +488,16 @@
           } else {
             finalSubSegResults.push(val);
           }
-          // Final segment output (only name, include "High Value Individual")
+
+          // Build final segment output
           if (matchSeg) {
             let finalText = "";
             switch (matchSeg.status.type) {
               case "Mapped":
-              case "Renamed":
                 finalText = matchSeg.nameOriginal;
+                break;
+              case "Renamed":
+                finalText = matchSeg.nameOriginal; // use segment column name
                 break;
               case "Remap":
                 const targetName = findRemapTargetName(matchSeg, segmentsData);
@@ -476,11 +511,10 @@
             finalSegResults.push(val);
           }
         }
+
         inputListContainer.appendChild(resultUl);
-        // Add High Value Individual to segment output, if not already included
-        if (!finalSegResults.includes("High Value Individual")) {
-          finalSegResults.push("High Value Individual");
-        }
+
+        // Append only final results as plain list items
         const subUl = document.createElement("ul");
         finalSubSegResults.forEach((txt) => {
           const li = document.createElement("li");
@@ -488,6 +522,7 @@
           subUl.appendChild(li);
         });
         finalSubSegOutput.appendChild(subUl);
+
         const segUl = document.createElement("ul");
         finalSegResults.forEach((txt) => {
           const li = document.createElement("li");
@@ -496,6 +531,7 @@
         });
         finalSegOutput.appendChild(segUl);
       }
+
       document
         .getElementById("processButton")
         .addEventListener("click", processInput);
