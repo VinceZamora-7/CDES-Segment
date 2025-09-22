@@ -453,4 +453,27 @@ function processInput() {
   } else {
     finalSegOutput.innerHTML = "<p>No segment matches found.</p>";
   }
+
+  // Update counts
+  document.getElementById(
+    "subSegmentCount"
+  ).textContent = `Count: ${finalSubSegResults.length}`;
+  document.getElementById(
+    "segmentCount"
+  ).textContent = `Count: ${finalSegResults.length}`;
+
+  // Copy button handlers
+  document.getElementById("copySubSegment").onclick = () => {
+    const text = finalSubSegResults.join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Sub-segment results copied to clipboard.");
+    });
+  };
+
+  document.getElementById("copySegment").onclick = () => {
+    const text = finalSegResults.join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Segment results copied to clipboard.");
+    });
+  };
 }
