@@ -133,3 +133,23 @@ tbody tr:hover {
     width: 100%;
   }
 }
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 0.5em;
+}
+.result-header button {
+  background-color: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+.result-header button:hover {
+  background-color: #005fa3;
+}
