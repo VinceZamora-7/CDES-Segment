@@ -313,9 +313,12 @@ function processInput() {
   const resultUl = document.createElement("ul");
 
   for (const rawVal of rawItems) {
-    const allSegmentParentheses = isAllSegmentInParentheses(rawVal);
+    const parenMatch = rawVal.match(/\(([^)]+)\)/);
+    // condition: If no parentheses OR parentheses content is "all segment(s)"
+    const treatAsSegment = !parenMatch || isAllSegmentInParentheses(rawVal);
 
-    const valToMatchNormalized = allSegmentParentheses
+    // match key is text outside parentheses for segment case, else parentheses content or original text for others
+    const valToMatchNormalized = treatAsSegment
       ? normalizeText(getTextOutsideParentheses(rawVal))
       : normalizeText(extractInParenthesesOrOriginal(rawVal));
 
@@ -328,28 +331,22 @@ function processInput() {
       valToMatchNormalized
     );
 
-    if (!allSegmentParentheses) {
-      const parenMatch = rawVal.match(/\(([^)]+)\)/);
-      if (parenMatch) {
-        const renamedSub = findRenamedByParentheses(
-          subSegmentsData,
-          parenMatch[1]
-        );
-        if (renamedSub) matchSub = renamedSub;
-        const renamedSeg = findRenamedByParentheses(
-          segmentsData,
-          parenMatch[1]
-        );
-        if (renamedSeg) matchSeg = renamedSeg;
-      }
+    // For non-segment treated inputs, check also renamed by parentheses
+    if (!treatAsSegment && parenMatch) {
+      const renamedSub = findRenamedByParentheses(
+        subSegmentsData,
+        parenMatch[1]
+      );
+      if (renamedSub) matchSub = renamedSub;
+      const renamedSeg = findRenamedByParentheses(segmentsData, parenMatch[1]);
+      if (renamedSeg) matchSeg = renamedSeg;
     }
 
     const li = document.createElement("li");
 
-    if (allSegmentParentheses) {
-      // Display text without parentheses and content in final segment output
+    if (treatAsSegment) {
+      // Show only text outside parentheses in segment output
       const displayText = getTextOutsideParentheses(rawVal);
-
       li.textContent = displayText;
 
       if (matchSeg) {
@@ -366,12 +363,13 @@ function processInput() {
       }
 
       resultUl.appendChild(li);
-      finalSegResults.push(displayText); // push displayText, not rawVal
+      finalSegResults.push(displayText);
 
-      // Skip adding to sub-segment output
+      // Skip adding to sub-segment
       continue;
     }
 
+    // Normal handling for sub-segment inputs
     li.textContent = valToMatchNormalized;
 
     if (matchSub) {
