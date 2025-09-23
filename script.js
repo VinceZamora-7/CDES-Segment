@@ -1,5 +1,4 @@
 // Data arrays for dynamic table creation
-// Data arrays for dynamic table creation
 const segmentsDataStatic = [
   {
     name: "High Value Individual",
@@ -137,7 +136,7 @@ let subSegmentsTable;
 
 function createTable(data, headers) {
   const table = document.createElement("table");
-  table.id = headers[0].toLowerCase().replace(/ /g, "") + "Table";
+  table.id = headers[0].toLowerCase().replace(/\s/g, "") + "Table";
   table.setAttribute("aria-label", headers.join(" & ") + " Table");
 
   const thead = document.createElement("thead");
@@ -167,6 +166,7 @@ function createTable(data, headers) {
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
+
   return table;
 }
 
@@ -232,129 +232,147 @@ function findRemapTargetName(remapRow, data) {
   return renamedRow ? renamedRow.nameOriginal : null;
 }
 
+function getTextOutsideParentheses(text) {
+  return text.replace(/\s*\([^)]*\)/g, "").trim();
+}
+
+function isAllSegmentInParentheses(text) {
+  const parenMatch = text.match(/\(([^)]+)\)/);
+  if (!parenMatch) return false;
+  const val = parenMatch[1].toLowerCase();
+  return val === "all segment" || val === "all segments";
+}
+
+function findByNameOrDescriptionQuote(data, searchText) {
+  return (
+    data.find((d) => d.name === searchText) ||
+    data.find((d) => d.descriptionQuote === searchText)
+  );
+}
+
+function findRenamedByParentheses(data, parentheses) {
+  if (!parentheses) return null;
+  const normParen = normalizeText(parentheses);
+  return data.find(
+    (d) =>
+      d.status.type === "renamed" &&
+      normalizeText(d.description || "").includes(normParen)
+  );
+}
+
 function processInput() {
   const rawInput = document.getElementById("userInput").value.trim();
   const inputListContainer = document.getElementById("inputList");
   const finalSubSegOutput = document.getElementById("finalSubSegmentOutput");
   const finalSegOutput = document.getElementById("finalSegmentOutput");
 
-  const segmentsBody = segmentsTable.tBodies[0];
-  const subSegmentsBody = subSegmentsTable.tBodies[0];
-
   inputListContainer.innerHTML = "";
   finalSubSegOutput.innerHTML = "";
   finalSegOutput.innerHTML = "";
-  clearHighlights(subSegmentsBody);
-  clearHighlights(segmentsBody);
 
   if (!rawInput) {
     inputListContainer.innerHTML = "<p>No input provided.</p>";
     return;
   }
 
+  clearHighlights(segmentsTable.tBodies[0]);
+  clearHighlights(subSegmentsTable.tBodies[0]);
+
   const rawItems = rawInput.split(",").map((i) => i.trim());
-  const extractedValues = rawItems.map(extractInParenthesesOrOriginal);
-
-  // Build segments data with descriptionParentheses and tag info
-  const segmentsData = Array.from(segmentsBody.rows).map((row) => {
-    const desc = row.cells[1].textContent;
-    const matches = [...desc.matchAll(/\(([^)]+)\)/g)];
-    const descriptionParentheses = matches.length
-      ? matches[matches.length - 1][1].trim()
-      : null;
-    const tag = row.getAttribute("data-status") || "";
-
-    return {
+  const segmentsData = Array.from(segmentsTable.tBodies[0].rows).map((row) => ({
+    rowElem: row,
+    nameOriginal: row.cells[0].textContent,
+    name: normalizeText(row.cells[0].textContent),
+    description: row.cells[1].textContent,
+    descriptionQuote: normalizeText(
+      extractTextInQuotes(row.cells[1].textContent)
+    ),
+    status: {
+      type: row.getAttribute("data-status"),
+      className: row.getAttribute("data-status"),
+    },
+  }));
+  const subSegmentsData = Array.from(subSegmentsTable.tBodies[0].rows).map(
+    (row) => ({
       rowElem: row,
       nameOriginal: row.cells[0].textContent,
       name: normalizeText(row.cells[0].textContent),
-      description: desc,
-      descriptionQuote: extractTextInQuotes(desc),
-      status: { type: tag, className: tag },
-      descriptionParentheses,
-    };
-  });
+      description: row.cells[1].textContent,
+      descriptionQuote: normalizeText(
+        extractTextInQuotes(row.cells[1].textContent)
+      ),
+      status: {
+        type: row.getAttribute("data-status"),
+        className: row.getAttribute("data-status"),
+      },
+    })
+  );
 
-  // Similar for sub-segments
-  const subSegmentsData = Array.from(subSegmentsBody.rows).map((row) => {
-    const desc = row.cells[1].textContent;
-    const matches = [...desc.matchAll(/\(([^)]+)\)/g)];
-    const descriptionParentheses = matches.length
-      ? matches[matches.length - 1][1].trim()
-      : null;
-    const tag = row.getAttribute("data-status") || "";
-
-    return {
-      rowElem: row,
-      nameOriginal: row.cells[0].textContent,
-      name: normalizeText(row.cells[0].textContent),
-      description: desc,
-      descriptionQuote: extractTextInQuotes(desc),
-      status: { type: tag, className: tag },
-      descriptionParentheses,
-    };
-  });
-
-  // Helper: find renamed match by parentheses in the data
-  function findRenamedByParentheses(data, parentheses) {
-    if (!parentheses) return null;
-    const normParen = normalizeText(parentheses);
-    return data.find(
-      (d) =>
-        d.status.type === "renamed" &&
-        normalizeText(d.description || "").includes(normParen)
-    );
-  }
-
-  const resultUl = document.createElement("ul");
   const finalSubSegResults = [];
   const finalSegResults = [];
+  const resultUl = document.createElement("ul");
 
-  for (let i = 0; i < extractedValues.length; i++) {
-    const val = extractedValues[i];
-    const rawVal = rawItems[i];
-    const normVal = normalizeText(val);
+  for (const rawVal of rawItems) {
+    const allSegmentParentheses = isAllSegmentInParentheses(rawVal);
 
-    // Attempt to find segment match
-    let matchSeg =
-      segmentsData.find((s) => s.name === normVal) ||
-      segmentsData.find(
-        (s) =>
-          s.descriptionQuote && normalizeText(s.descriptionQuote) === normVal
-      );
+    const valToMatchNormalized = allSegmentParentheses
+      ? normalizeText(getTextOutsideParentheses(rawVal))
+      : normalizeText(extractInParenthesesOrOriginal(rawVal));
 
-    // Attempt to find sub-segment match
-    let matchSub =
-      subSegmentsData.find((s) => s.name === normVal) ||
-      subSegmentsData.find(
-        (s) =>
-          s.descriptionQuote && normalizeText(s.descriptionQuote) === normVal
-      );
+    let matchSeg = findByNameOrDescriptionQuote(
+      segmentsData,
+      valToMatchNormalized
+    );
+    let matchSub = findByNameOrDescriptionQuote(
+      subSegmentsData,
+      valToMatchNormalized
+    );
 
-    // If parentheses exist in input (rawVal), try to find renamed in subsegment first by parentheses
-    const parenthesesInput = rawVal.match(/\(([^)]+)\)/);
-    if (parenthesesInput) {
-      const renamedSub = findRenamedByParentheses(
-        subSegmentsData,
-        parenthesesInput[1]
-      );
-      if (renamedSub) {
-        matchSub = renamedSub;
-      }
-      const renamedSeg = findRenamedByParentheses(
-        segmentsData,
-        parenthesesInput[1]
-      );
-      if (renamedSeg) {
-        matchSeg = renamedSeg;
+    if (!allSegmentParentheses) {
+      const parenMatch = rawVal.match(/\(([^)]+)\)/);
+      if (parenMatch) {
+        const renamedSub = findRenamedByParentheses(
+          subSegmentsData,
+          parenMatch[1]
+        );
+        if (renamedSub) matchSub = renamedSub;
+        const renamedSeg = findRenamedByParentheses(
+          segmentsData,
+          parenMatch[1]
+        );
+        if (renamedSeg) matchSeg = renamedSeg;
       }
     }
 
-    // Don't duplicate: if matched in segment, don't add that input to subsegment results
-    const isInSegment = !!matchSeg;
-
     const li = document.createElement("li");
-    li.textContent = val;
+
+    if (allSegmentParentheses) {
+      // Display text without parentheses and content in final segment output
+      const displayText = getTextOutsideParentheses(rawVal);
+
+      li.textContent = displayText;
+
+      if (matchSeg) {
+        matchSeg.rowElem.classList.add(
+          "highlight-name",
+          matchSeg.status.className
+        );
+        const descSpan = document.createElement("span");
+        descSpan.classList.add("found-description");
+        descSpan.textContent = " (Segment) – " + matchSeg.description;
+        li.appendChild(descSpan);
+      } else {
+        li.textContent += " – No segment match found";
+      }
+
+      resultUl.appendChild(li);
+      finalSegResults.push(displayText); // push displayText, not rawVal
+
+      // Skip adding to sub-segment output
+      continue;
+    }
+
+    li.textContent = valToMatchNormalized;
 
     if (matchSub) {
       matchSub.rowElem.classList.add(
@@ -385,29 +403,22 @@ function processInput() {
 
     resultUl.appendChild(li);
 
-    // Add to subsegment result only if not matched in segment already
-    if (!isInSegment) {
-      if (matchSub) {
-        let finalText = "";
-        switch (matchSub.status.type) {
-          case "mapped":
-          case "renamed":
-            finalText = matchSub.nameOriginal;
-            break;
-          case "remap":
-            const targetNameSub = findRemapTargetName(
-              matchSub,
-              subSegmentsData
-            );
-            finalText = targetNameSub || val;
-            break;
-          default:
-            finalText = val;
-        }
-        finalSubSegResults.push(finalText);
-      } else if (rawVal.includes("(") && rawVal.includes(")")) {
-        finalSubSegResults.push(val);
+    if (!matchSeg && matchSub) {
+      let finalText = "";
+      switch (matchSub.status.type) {
+        case "mapped":
+        case "renamed":
+          finalText = matchSub.nameOriginal;
+          break;
+        case "remap":
+          finalText =
+            findRemapTargetName(matchSub, subSegmentsData) ||
+            valToMatchNormalized;
+          break;
+        default:
+          finalText = valToMatchNormalized;
       }
+      finalSubSegResults.push(finalText);
     }
 
     if (matchSeg) {
@@ -418,11 +429,11 @@ function processInput() {
           finalText = matchSeg.nameOriginal;
           break;
         case "remap":
-          const targetNameSeg = findRemapTargetName(matchSeg, segmentsData);
-          finalText = targetNameSeg || val;
+          finalText =
+            findRemapTargetName(matchSeg, segmentsData) || valToMatchNormalized;
           break;
         default:
-          finalText = val;
+          finalText = valToMatchNormalized;
       }
       finalSegResults.push(finalText);
     }
@@ -454,7 +465,6 @@ function processInput() {
     finalSegOutput.innerHTML = "<p>No segment matches found.</p>";
   }
 
-  // Update counts
   document.getElementById(
     "subSegmentCount"
   ).textContent = `Count: ${finalSubSegResults.length}`;
@@ -465,15 +475,14 @@ function processInput() {
   // Copy button handlers
   document.getElementById("copySubSegment").onclick = () => {
     const text = finalSubSegResults.join("\n");
-    navigator.clipboard.writeText(text).then(() => {
-      alert("Sub-segment results copied to clipboard.");
-    });
+    navigator.clipboard
+      .writeText(text)
+      .then(() => alert("Sub-segment results copied to clipboard."));
   };
-
   document.getElementById("copySegment").onclick = () => {
     const text = finalSegResults.join("\n");
-    navigator.clipboard.writeText(text).then(() => {
-      alert("Segment results copied to clipboard.");
-    });
+    navigator.clipboard
+      .writeText(text)
+      .then(() => alert("Segment results copied to clipboard."));
   };
 }
