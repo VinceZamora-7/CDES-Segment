@@ -1,4 +1,3 @@
-// Data arrays for dynamic table creation
 const segmentsDataStatic = [
   {
     name: "High Value Individual",
@@ -93,21 +92,13 @@ const subSegmentsDataStatic = [
     tag: "Renamed",
     description: 'Renamed to "Strategic - Commercial "',
   },
-  {
-    name: "Major - Health",
-    tag: "Deleted",
-    description: "Deleted",
-  },
+  { name: "Major - Health", tag: "Deleted", description: "Deleted" },
   {
     name: "Major - State & Local Governments",
     tag: "Deleted",
     description: "Deleted",
   },
-  {
-    name: "Strategic - Health",
-    tag: "Deleted",
-    description: "Deleted",
-  },
+  { name: "Strategic - Health", tag: "Deleted", description: "Deleted" },
   {
     name: "SME&C Commercial – SMB Default",
     tag: "Remap",
@@ -130,7 +121,6 @@ const subSegmentsDataStatic = [
   },
 ];
 
-// Global table references
 let segmentsTable;
 let subSegmentsTable;
 
@@ -161,104 +151,101 @@ function createTable(data, headers) {
     tdName.textContent = item.name;
     const tdDesc = document.createElement("td");
     tdDesc.textContent = item.description;
+
     tr.appendChild(tdName);
     tr.appendChild(tdDesc);
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-
   return table;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const segmentsContainer = document.getElementById("segmentsTableContainer");
-  const subSegmentsContainer = document.getElementById(
-    "subSegmentsTableContainer"
-  );
-
   segmentsTable = createTable(segmentsDataStatic, ["Segment", "Description"]);
   subSegmentsTable = createTable(subSegmentsDataStatic, [
     "Sub-segment",
     "Description",
   ]);
 
-  segmentsContainer.appendChild(segmentsTable);
-  subSegmentsContainer.appendChild(subSegmentsTable);
+  document.getElementById("segmentsTableContainer").appendChild(segmentsTable);
+  document
+    .getElementById("subSegmentsTableContainer")
+    .appendChild(subSegmentsTable);
 
   document
     .getElementById("processButton")
     .addEventListener("click", processInput);
 });
 
-function decodeHtmlEntities(text) {
-  const txt = document.createElement("textarea");
-  txt.innerHTML = text;
-  return txt.value;
-}
+const decodeHtmlEntities = (text) => {
+  const el = document.createElement("textarea");
+  el.innerHTML = text;
+  return el.value;
+};
 
-function normalizeText(text) {
+const normalizeText = (text) => {
   if (!text) return "";
   return decodeHtmlEntities(text).replace(/[-–—]/g, "-").trim().toLowerCase();
-}
+};
 
-function extractInParenthesesOrOriginal(text) {
+const extractLastParenthesesContent = (text) => {
   const matches = [...text.matchAll(/\(([^)]+)\)/g)];
   return matches.length ? matches[matches.length - 1][1].trim() : text.trim();
-}
+};
 
-function extractTextInQuotes(text) {
-  const match = text.match(/[“"”](.*?)[”"]/);
-  return match ? match[1].trim() : null;
-}
+const extractTextInQuotes = (text) => {
+  const m = text.match(/[“"”](.*?)[”"]/);
+  return m ? m[1].trim() : null;
+};
 
-function clearHighlights(tbody) {
-  for (const row of tbody.rows) {
+const clearHighlights = (tbody) => {
+  Array.from(tbody.rows).forEach((row) => {
     row.classList.remove("highlight-name", "mapped", "renamed", "remap");
-  }
-}
+  });
+};
 
-function findRemapTargetName(remapRow, data) {
+const findRemapTargetName = (remapRow, data) => {
   const desc = remapRow.description.toLowerCase();
   const remapIdx = desc.indexOf("remap to");
   if (remapIdx === -1) return null;
-  let targetText = remapRow.description.slice(remapIdx + 8).trim();
-  targetText = targetText.replace(/[.,]$/, "").trim();
+
+  let targetText = remapRow.description
+    .slice(remapIdx + 8)
+    .trim()
+    .replace(/[.,]$/, "");
   const normTarget = normalizeText(targetText);
+
   const renamedRow = data.find(
     (s) =>
       s.status.type === "Renamed" &&
       normalizeText(s.description).includes(normTarget)
   );
   return renamedRow ? renamedRow.nameOriginal : null;
-}
+};
 
-function getTextOutsideParentheses(text) {
-  return text.replace(/\s*\([^)]*\)/g, "").trim();
-}
+const getTextOutsideParentheses = (text) =>
+  text.replace(/\s*\([^)]*\)/g, "").trim();
 
-function isAllSegmentInParentheses(text) {
-  const parenMatch = text.match(/\(([^)]+)\)/);
-  if (!parenMatch) return false;
-  const val = parenMatch[1].toLowerCase();
+const isAllSegmentInParentheses = (text) => {
+  const m = text.match(/\(([^)]+)\)/);
+  if (!m) return false;
+  const val = m[1].toLowerCase();
   return val === "all segment" || val === "all segments";
-}
+};
 
-function findByNameOrDescriptionQuote(data, searchText) {
-  return (
-    data.find((d) => d.name === searchText) ||
-    data.find((d) => d.descriptionQuote === searchText)
-  );
-}
+const findByNameOrDescriptionQuote = (data, searchText) =>
+  data.find((d) => d.name === searchText) ||
+  data.find((d) => d.descriptionQuote === searchText);
 
-function findRenamedByParentheses(data, parentheses) {
+const findRenamedByParentheses = (data, parentheses) => {
   if (!parentheses) return null;
-  const normParen = normalizeText(parentheses);
+  const norm = normalizeText(parentheses);
   return data.find(
     (d) =>
       d.status.type === "renamed" &&
-      normalizeText(d.description || "").includes(normParen)
+      normalizeText(d.description || "").includes(norm)
   );
-}
+};
 
 function processInput() {
   const rawInput = document.getElementById("userInput").value.trim();
@@ -279,6 +266,7 @@ function processInput() {
   clearHighlights(subSegmentsTable.tBodies[0]);
 
   const rawItems = rawInput.split(",").map((i) => i.trim());
+
   const segmentsData = Array.from(segmentsTable.tBodies[0].rows).map((row) => ({
     rowElem: row,
     nameOriginal: row.cells[0].textContent,
@@ -292,6 +280,7 @@ function processInput() {
       className: row.getAttribute("data-status"),
     },
   }));
+
   const subSegmentsData = Array.from(subSegmentsTable.tBodies[0].rows).map(
     (row) => ({
       rowElem: row,
@@ -314,13 +303,10 @@ function processInput() {
 
   for (const rawVal of rawItems) {
     const parenMatch = rawVal.match(/\(([^)]+)\)/);
-    // condition: If no parentheses OR parentheses content is "all segment(s)"
     const treatAsSegment = !parenMatch || isAllSegmentInParentheses(rawVal);
-
-    // match key is text outside parentheses for segment case, else parentheses content or original text for others
     const valToMatchNormalized = treatAsSegment
       ? normalizeText(getTextOutsideParentheses(rawVal))
-      : normalizeText(extractInParenthesesOrOriginal(rawVal));
+      : normalizeText(extractLastParenthesesContent(rawVal));
 
     let matchSeg = findByNameOrDescriptionQuote(
       segmentsData,
@@ -331,7 +317,6 @@ function processInput() {
       valToMatchNormalized
     );
 
-    // For non-segment treated inputs, check also renamed by parentheses
     if (!treatAsSegment && parenMatch) {
       const renamedSub = findRenamedByParentheses(
         subSegmentsData,
@@ -345,7 +330,6 @@ function processInput() {
     const li = document.createElement("li");
 
     if (treatAsSegment) {
-      // Show only text outside parentheses in segment output
       const displayText = getTextOutsideParentheses(rawVal);
       li.textContent = displayText;
 
@@ -356,7 +340,7 @@ function processInput() {
         );
         const descSpan = document.createElement("span");
         descSpan.classList.add("found-description");
-        descSpan.textContent = " (Segment) – " + matchSeg.description;
+        descSpan.textContent = ` (Segment) – ${matchSeg.description}`;
         li.appendChild(descSpan);
       } else {
         li.textContent += " – No segment match found";
@@ -364,12 +348,9 @@ function processInput() {
 
       resultUl.appendChild(li);
       finalSegResults.push(displayText);
-
-      // Skip adding to sub-segment
       continue;
     }
 
-    // Normal handling for sub-segment inputs
     li.textContent = valToMatchNormalized;
 
     if (matchSub) {
@@ -380,7 +361,7 @@ function processInput() {
       li.classList.add(matchSub.status.className);
       const descSpan = document.createElement("span");
       descSpan.classList.add("found-description");
-      descSpan.textContent = " (Sub-segment) – " + matchSub.description;
+      descSpan.textContent = ` (Sub-segment) – ${matchSub.description}`;
       li.appendChild(descSpan);
     }
 
@@ -391,47 +372,49 @@ function processInput() {
       );
       const descSpan = document.createElement("span");
       descSpan.classList.add("found-description");
-      descSpan.textContent = " (Segment) – " + matchSeg.description;
+      descSpan.textContent = ` (Segment) – ${matchSeg.description}`;
       li.appendChild(descSpan);
     }
 
     if (!matchSub && !matchSeg) {
-      li.textContent += " – No match found";
+      if (parenMatch) {
+        const valInsideParentheses = parenMatch[1].trim();
+        li.textContent = `${valInsideParentheses} – No match found`;
+        finalSubSegResults.push(valInsideParentheses);
+        resultUl.appendChild(li);
+        continue;
+      } else {
+        li.textContent += " – No match found";
+      }
     }
 
     resultUl.appendChild(li);
 
     if (!matchSeg && matchSub) {
-      let finalText = "";
-      switch (matchSub.status.type) {
-        case "mapped":
-        case "renamed":
-          finalText = matchSub.nameOriginal;
-          break;
-        case "remap":
-          finalText =
-            findRemapTargetName(matchSub, subSegmentsData) ||
-            valToMatchNormalized;
-          break;
-        default:
-          finalText = valToMatchNormalized;
+      let finalText = valToMatchNormalized;
+      if (
+        matchSub.status.type === "mapped" ||
+        matchSub.status.type === "renamed"
+      ) {
+        finalText = matchSub.nameOriginal;
+      } else if (matchSub.status.type === "remap") {
+        finalText =
+          findRemapTargetName(matchSub, subSegmentsData) ||
+          valToMatchNormalized;
       }
       finalSubSegResults.push(finalText);
     }
 
     if (matchSeg) {
-      let finalText = "";
-      switch (matchSeg.status.type) {
-        case "mapped":
-        case "renamed":
-          finalText = matchSeg.nameOriginal;
-          break;
-        case "remap":
-          finalText =
-            findRemapTargetName(matchSeg, segmentsData) || valToMatchNormalized;
-          break;
-        default:
-          finalText = valToMatchNormalized;
+      let finalText = valToMatchNormalized;
+      if (
+        matchSeg.status.type === "mapped" ||
+        matchSeg.status.type === "renamed"
+      ) {
+        finalText = matchSeg.nameOriginal;
+      } else if (matchSeg.status.type === "remap") {
+        finalText =
+          findRemapTargetName(matchSeg, segmentsData) || valToMatchNormalized;
       }
       finalSegResults.push(finalText);
     }
@@ -439,29 +422,13 @@ function processInput() {
 
   inputListContainer.appendChild(resultUl);
 
-  if (finalSubSegResults.length) {
-    const subUl = document.createElement("ul");
-    finalSubSegResults.forEach((txt) => {
-      const li = document.createElement("li");
-      li.textContent = txt;
-      subUl.appendChild(li);
-    });
-    finalSubSegOutput.appendChild(subUl);
-  } else {
-    finalSubSegOutput.innerHTML = "<p>No sub-segment matches found.</p>";
-  }
+  finalSubSegOutput.innerHTML = finalSubSegResults.length
+    ? `<ul>${finalSubSegResults.map((txt) => `<li>${txt}</li>`).join("")}</ul>`
+    : "<p>No sub-segment matches found.</p>";
 
-  if (finalSegResults.length) {
-    const segUl = document.createElement("ul");
-    finalSegResults.forEach((txt) => {
-      const li = document.createElement("li");
-      li.textContent = txt;
-      segUl.appendChild(li);
-    });
-    finalSegOutput.appendChild(segUl);
-  } else {
-    finalSegOutput.innerHTML = "<p>No segment matches found.</p>";
-  }
+  finalSegOutput.innerHTML = finalSegResults.length
+    ? `<ul>${finalSegResults.map((txt) => `<li>${txt}</li>`).join("")}</ul>`
+    : "<p>No segment matches found.</p>";
 
   document.getElementById(
     "subSegmentCount"
@@ -470,17 +437,14 @@ function processInput() {
     "segmentCount"
   ).textContent = `Count: ${finalSegResults.length}`;
 
-  // Copy button handlers
   document.getElementById("copySubSegment").onclick = () => {
-    const text = finalSubSegResults.join("\n");
-    navigator.clipboard
-      .writeText(text)
-      .then(() => alert("Sub-segment results copied to clipboard."));
+    navigator.clipboard.writeText(finalSubSegResults.join("\n")).then(() => {
+      alert("Sub-segment results copied to clipboard.");
+    });
   };
   document.getElementById("copySegment").onclick = () => {
-    const text = finalSegResults.join("\n");
-    navigator.clipboard
-      .writeText(text)
-      .then(() => alert("Segment results copied to clipboard."));
+    navigator.clipboard.writeText(finalSegResults.join("\n")).then(() => {
+      alert("Segment results copied to clipboard.");
+    });
   };
 }
