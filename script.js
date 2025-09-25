@@ -1,8 +1,48 @@
 const segmentsDataStatic = [
   {
-    name: "High Value Individual",
+    name: "Enterprise Digital Natives",
     tag: "Mapped",
-    description: "New Mapped to “High Value Individual” Summary Segment",
+    description: "New Mapped to “Enterprise Commercial” Summary Segment",
+  },
+  {
+    name: "Majors Growth Commercial",
+    tag: "Mapped",
+    description: "New Mapped to “Enterprise Commercial” Summary Segment",
+  },
+  {
+    name: "Majors Growth Public Sector",
+    tag: "Mapped",
+    description: "New Mapped to “Enterprise Public Sector” Summary Segment",
+  },
+  {
+    name: "SME&C - SMB Commercial",
+    tag: "Mapped",
+    description: "New Mapped to “SME&C Commercial” Summary Segment",
+  },
+  {
+    name: "SME&C - SMB Public Sector",
+    tag: "Mapped",
+    description: "New Mapped to “SME&C Public Sector” Summary Segment",
+  },
+  {
+    name: "Major Commercial",
+    tag: "Renamed",
+    description: "Renamed to “Upper Majors Commercial”",
+  },
+  {
+    name: "Major Public Sector  ",
+    tag: "Renamed",
+    description: "Renamed to “Upper Majors Public Sector”",
+  },
+  {
+    name: "Small, Medium & Corporate Commercial",
+    tag: "Renamed",
+    description: "Renamed to “SME&C - Corporate Commercial”",
+  },
+  {
+    name: "Small, Medium & Corporate Public Sector",
+    tag: "Renamed",
+    description: "Renamed to “SME&C - Corporate Public Sector”",
   },
 ];
 
@@ -306,29 +346,39 @@ function processInput() {
     const treatAsSegment = !parenMatch || isAllSegmentInParentheses(rawVal);
     const valToMatchNormalized = treatAsSegment
       ? normalizeText(getTextOutsideParentheses(rawVal))
-      : normalizeText(extractLastParenthesesContent(rawVal));
+      : normalizeText(parenMatch[1].trim());
 
-    let matchSeg = findByNameOrDescriptionQuote(
-      segmentsData,
-      valToMatchNormalized
-    );
-    let matchSub = findByNameOrDescriptionQuote(
-      subSegmentsData,
-      valToMatchNormalized
-    );
+    let matchSeg = null;
+    let matchSub = null;
 
-    if (!treatAsSegment && parenMatch) {
-      const renamedSub = findRenamedByParentheses(
-        subSegmentsData,
-        parenMatch[1]
+    // Segment matching only if treatAsSegment true
+    if (treatAsSegment) {
+      matchSeg = findByNameOrDescriptionQuote(
+        segmentsData,
+        valToMatchNormalized
       );
-      if (renamedSub) matchSub = renamedSub;
-      const renamedSeg = findRenamedByParentheses(segmentsData, parenMatch[1]);
-      if (renamedSeg) matchSeg = renamedSeg;
+    }
+
+    // Sub-segment matching only if input has parentheses and treatAsSegment false
+    if (!treatAsSegment && parenMatch) {
+      matchSub = findByNameOrDescriptionQuote(
+        subSegmentsData,
+        valToMatchNormalized
+      );
+
+      // If renamed by parentheses for sub-segment
+      if (!matchSub) {
+        const renamedSub = findRenamedByParentheses(
+          subSegmentsData,
+          parenMatch[1]
+        );
+        if (renamedSub) matchSub = renamedSub;
+      }
     }
 
     const li = document.createElement("li");
 
+    // Outcome for full segment input or "(all segment)"
     if (treatAsSegment) {
       const displayText = getTextOutsideParentheses(rawVal);
       li.textContent = displayText;
@@ -351,6 +401,7 @@ function processInput() {
       continue;
     }
 
+    // Outcome for sub-segment matching input (with parentheses and not all segment)
     li.textContent = valToMatchNormalized;
 
     if (matchSub) {
@@ -365,6 +416,7 @@ function processInput() {
       li.appendChild(descSpan);
     }
 
+    // Also highlight segment if found (optional, can be removed if you want strict ignore)
     if (matchSeg) {
       matchSeg.rowElem.classList.add(
         "highlight-name",
@@ -376,16 +428,12 @@ function processInput() {
       li.appendChild(descSpan);
     }
 
-    if (!matchSub && !matchSeg) {
-      if (parenMatch) {
-        const valInsideParentheses = parenMatch[1].trim();
-        li.textContent = `${valInsideParentheses} – No match found`;
-        finalSubSegResults.push(valInsideParentheses);
-        resultUl.appendChild(li);
-        continue;
-      } else {
-        li.textContent += " – No match found";
-      }
+    // If sub-segment no match, but parentheses present, output the parentheses content as-is
+    if (!matchSub && !matchSeg && parenMatch) {
+      li.textContent = `${parenMatch[1]} – No match found`;
+      finalSubSegResults.push(parenMatch[1]);
+      resultUl.appendChild(li);
+      continue;
     }
 
     resultUl.appendChild(li);
