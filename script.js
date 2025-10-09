@@ -397,7 +397,7 @@ function processInput() {
       }
 
       resultUl.appendChild(li);
-      finalSegResults.push(displayText);
+      finalSegResults.push(matchSeg ? matchSeg.nameOriginal : displayText);
       continue;
     }
 
@@ -439,32 +439,41 @@ function processInput() {
     resultUl.appendChild(li);
 
     if (!matchSeg && matchSub) {
-      let finalText = valToMatchNormalized;
       if (
         matchSub.status.type === "mapped" ||
         matchSub.status.type === "renamed"
       ) {
-        finalText = matchSub.nameOriginal;
+        finalSubSegResults.push(matchSub.nameOriginal);
       } else if (matchSub.status.type === "remap") {
-        finalText =
-          findRemapTargetName(matchSub, subSegmentsData) ||
-          valToMatchNormalized;
+        const remapTarget = findRemapTargetName(matchSub, subSegmentsData);
+        const targetRow = subSegmentsData.find(
+          (d) => d.nameOriginal === remapTarget
+        );
+        finalSubSegResults.push(
+          targetRow ? targetRow.nameOriginal : matchSub.nameOriginal
+        );
+      } else {
+        finalSubSegResults.push(matchSub.nameOriginal);
       }
-      finalSubSegResults.push(finalText);
     }
 
     if (matchSeg) {
-      let finalText = valToMatchNormalized;
       if (
         matchSeg.status.type === "mapped" ||
         matchSeg.status.type === "renamed"
       ) {
-        finalText = matchSeg.nameOriginal;
+        finalSegResults.push(matchSeg.nameOriginal);
       } else if (matchSeg.status.type === "remap") {
-        finalText =
-          findRemapTargetName(matchSeg, segmentsData) || valToMatchNormalized;
+        const remapTarget = findRemapTargetName(matchSeg, segmentsData);
+        const targetRow = segmentsData.find(
+          (d) => d.nameOriginal === remapTarget
+        );
+        finalSegResults.push(
+          targetRow ? targetRow.nameOriginal : matchSeg.nameOriginal
+        );
+      } else {
+        finalSegResults.push(matchSeg.nameOriginal);
       }
-      finalSegResults.push(finalText);
     }
   }
 
