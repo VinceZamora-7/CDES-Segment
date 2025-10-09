@@ -130,10 +130,10 @@ h1 {
 /* Final outputs container */
 .final-output-container {
   display: flex;
+  flex-direction: row;
   gap: 2.2rem;
   max-width: 1220px;
   margin: 0 auto 3em;
-  flex-wrap: wrap;
   justify-content: center;
 }
 .final-output {
