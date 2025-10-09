@@ -1,3 +1,4 @@
+// Static data arrays for segments and sub-segments
 const segmentsDataStatic = [
   {
     name: "Enterprise Digital Natives",
@@ -105,7 +106,7 @@ const subSegmentsDataStatic = [
   {
     name: "SM&C Commercial - SMB Default",
     tag: "Renamed",
-    description: 'Renamed to "SME&C Commercial - SMB Default"',
+    description: 'Renamed to "SME&C - SMB Default"',
   },
   {
     name: "SM&C Education - Corporate",
@@ -161,62 +162,7 @@ const subSegmentsDataStatic = [
   },
 ];
 
-let segmentsTable;
-let subSegmentsTable;
-
-function createTable(data, headers) {
-  const table = document.createElement("table");
-  table.id = headers[0].toLowerCase().replace(/\s/g, "") + "Table";
-  table.setAttribute("aria-label", headers.join(" & ") + " Table");
-
-  const thead = document.createElement("thead");
-  const trHead = document.createElement("tr");
-  headers.forEach((h) => {
-    const th = document.createElement("th");
-    th.textContent = h;
-    trHead.appendChild(th);
-  });
-  thead.appendChild(trHead);
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-  data.forEach((item) => {
-    const tr = document.createElement("tr");
-    tr.setAttribute(
-      "data-status",
-      item.tag ? item.tag.toLowerCase() : "unknown"
-    );
-
-    const tdName = document.createElement("td");
-    tdName.textContent = item.name;
-    const tdDesc = document.createElement("td");
-    tdDesc.textContent = item.description;
-
-    tr.appendChild(tdName);
-    tr.appendChild(tdDesc);
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  return table;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  segmentsTable = createTable(segmentsDataStatic, ["Segment", "Description"]);
-  subSegmentsTable = createTable(subSegmentsDataStatic, [
-    "Sub-segment",
-    "Description",
-  ]);
-
-  document.getElementById("segmentsTableContainer").appendChild(segmentsTable);
-  document
-    .getElementById("subSegmentsTableContainer")
-    .appendChild(subSegmentsTable);
-
-  document
-    .getElementById("processButton")
-    .addEventListener("click", processInput);
-});
-
+// Utility functions
 const decodeHtmlEntities = (text) => {
   const el = document.createElement("textarea");
   el.innerHTML = text;
@@ -228,39 +174,9 @@ const normalizeText = (text) => {
   return decodeHtmlEntities(text).replace(/[-–—]/g, "-").trim().toLowerCase();
 };
 
-const extractLastParenthesesContent = (text) => {
-  const matches = [...text.matchAll(/\(([^)]+)\)/g)];
-  return matches.length ? matches[matches.length - 1][1].trim() : text.trim();
-};
-
 const extractTextInQuotes = (text) => {
   const m = text.match(/[“"”](.*?)[”"]/);
   return m ? m[1].trim() : null;
-};
-
-const clearHighlights = (tbody) => {
-  Array.from(tbody.rows).forEach((row) => {
-    row.classList.remove("highlight-name", "mapped", "renamed", "remap");
-  });
-};
-
-const findRemapTargetName = (remapRow, data) => {
-  const desc = remapRow.description.toLowerCase();
-  const remapIdx = desc.indexOf("remap to");
-  if (remapIdx === -1) return null;
-
-  let targetText = remapRow.description
-    .slice(remapIdx + 8)
-    .trim()
-    .replace(/[.,]$/, "");
-  const normTarget = normalizeText(targetText);
-
-  const renamedRow = data.find(
-    (s) =>
-      s.status.type === "Renamed" &&
-      normalizeText(s.description).includes(normTarget)
-  );
-  return renamedRow ? renamedRow.nameOriginal : null;
 };
 
 const getTextOutsideParentheses = (text) =>
@@ -273,19 +189,123 @@ const isAllSegmentInParentheses = (text) => {
   return val === "all segment" || val === "all segments";
 };
 
-const findByNameOrDescriptionQuote = (data, searchText) =>
-  data.find((d) => d.name === searchText) ||
-  data.find((d) => d.descriptionQuote === searchText);
-
-const findRenamedByParentheses = (data, parentheses) => {
-  if (!parentheses) return null;
-  const norm = normalizeText(parentheses);
-  return data.find(
-    (d) =>
-      d.status.type === "renamed" &&
-      normalizeText(d.description || "").includes(norm)
-  );
+const clearHighlights = (tbody) => {
+  Array.from(tbody.rows).forEach((row) => {
+    row.classList.remove("highlight-name", "mapped", "renamed", "remap");
+  });
 };
+
+function createTable(data, headers) {
+  const table = document.createElement("table");
+  table.id = headers[0].toLowerCase().replace(/\s/g, "") + "Table";
+  table.setAttribute("aria-label", headers.join(" & ") + " Table");
+  const thead = document.createElement("thead");
+  const trHead = document.createElement("tr");
+  headers.forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  data.forEach((item) => {
+    const tr = document.createElement("tr");
+    tr.setAttribute(
+      "data-status",
+      item.tag ? item.tag.toLowerCase() : "unknown"
+    );
+    const tdName = document.createElement("td");
+    tdName.textContent = item.name;
+    const tdDesc = document.createElement("td");
+    tdDesc.textContent = item.description;
+    tr.appendChild(tdName);
+    tr.appendChild(tdDesc);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  return table;
+}
+
+// Declare global variables for tables and results
+let segmentsTable;
+let subSegmentsTable;
+
+let finalSubSegResults = [];
+let finalSegResults = [];
+
+let finalVerticalResults = [];
+let finalIndustryResults = [];
+
+document.addEventListener("DOMContentLoaded", () => {
+  // build tables
+  segmentsTable = createTable(segmentsDataStatic, ["Segment", "Description"]);
+  subSegmentsTable = createTable(subSegmentsDataStatic, [
+    "Sub-segment",
+    "Description",
+  ]);
+  document.getElementById("segmentsTableContainer").appendChild(segmentsTable);
+  document
+    .getElementById("subSegmentsTableContainer")
+    .appendChild(subSegmentsTable);
+
+  // attach button event handlers with debugging
+  const btnSegment = document.getElementById("processButton");
+  if (btnSegment) {
+    console.log("Attaching processButton click");
+    btnSegment.addEventListener("click", () => {
+      console.log("processButton clicked");
+      processInput();
+    });
+  }
+  const btnIndustry = document.getElementById("industryProcessButton");
+  if (btnIndustry) {
+    console.log("Attaching industryProcessButton click");
+    btnIndustry.addEventListener("click", () => {
+      console.log("industryProcessButton clicked");
+      processIndustryInput();
+    });
+  }
+
+  document.getElementById("copySubSegment").onclick = () => {
+    navigator.clipboard
+      .writeText(finalSubSegResults.join("\n"))
+      .then(() => alert("Sub-segment results copied."));
+  };
+  document.getElementById("copySegment").onclick = () => {
+    navigator.clipboard
+      .writeText(finalSegResults.join("\n"))
+      .then(() => alert("Segment results copied."));
+  };
+  document.getElementById("copyVertical").onclick = () => {
+    navigator.clipboard
+      .writeText(finalVerticalResults.join("\n"))
+      .then(() => alert("Vertical results copied."));
+  };
+  document.getElementById("copyIndustry").onclick = () => {
+    navigator.clipboard
+      .writeText(finalIndustryResults.join("\n"))
+      .then(() => alert("Industry results copied."));
+  };
+
+  // toggle section visibility
+  const radios = document.querySelectorAll('input[name="toolChoice"]');
+  radios.forEach((radio) => {
+    radio.addEventListener("change", () => {
+      if (radio.value === "segment") {
+        document
+          .getElementById("segmentToolSection")
+          .classList.remove("hidden");
+        document.getElementById("industryToolSection").classList.add("hidden");
+      } else {
+        document
+          .getElementById("industryToolSection")
+          .classList.remove("hidden");
+        document.getElementById("segmentToolSection").classList.add("hidden");
+      }
+    });
+  });
+});
 
 function processInput() {
   const rawInput = document.getElementById("userInput").value.trim();
@@ -296,6 +316,8 @@ function processInput() {
   inputListContainer.innerHTML = "";
   finalSubSegOutput.innerHTML = "";
   finalSegOutput.innerHTML = "";
+  finalSubSegResults = [];
+  finalSegResults = [];
 
   if (!rawInput) {
     inputListContainer.innerHTML = "<p>No input provided.</p>";
@@ -337,8 +359,6 @@ function processInput() {
     })
   );
 
-  const finalSubSegResults = [];
-  const finalSegResults = [];
   const resultUl = document.createElement("ul");
 
   for (const rawVal of rawItems) {
@@ -351,26 +371,26 @@ function processInput() {
     let matchSeg = null;
     let matchSub = null;
 
-    // Segment matching only if treatAsSegment true
     if (treatAsSegment) {
-      matchSeg = findByNameOrDescriptionQuote(
-        segmentsData,
-        valToMatchNormalized
+      matchSeg = segmentsData.find(
+        (d) =>
+          d.name === valToMatchNormalized ||
+          d.descriptionQuote === valToMatchNormalized
       );
     }
 
-    // Sub-segment matching only if input has parentheses and treatAsSegment false
     if (!treatAsSegment && parenMatch) {
-      matchSub = findByNameOrDescriptionQuote(
-        subSegmentsData,
-        valToMatchNormalized
+      matchSub = subSegmentsData.find(
+        (d) =>
+          d.name === valToMatchNormalized ||
+          d.descriptionQuote === valToMatchNormalized
       );
 
-      // If renamed by parentheses for sub-segment
       if (!matchSub) {
-        const renamedSub = findRenamedByParentheses(
-          subSegmentsData,
-          parenMatch[1]
+        const renamedSub = subSegmentsData.find(
+          (d) =>
+            d.status.type === "renamed" &&
+            normalizeText(d.description).includes(valToMatchNormalized)
         );
         if (renamedSub) matchSub = renamedSub;
       }
@@ -378,7 +398,6 @@ function processInput() {
 
     const li = document.createElement("li");
 
-    // Outcome for full segment input or "(all segment)"
     if (treatAsSegment) {
       const displayText = getTextOutsideParentheses(rawVal);
       li.textContent = displayText;
@@ -396,12 +415,11 @@ function processInput() {
         li.textContent += " – No segment match found";
       }
 
-      resultUl.appendChild(li);
       finalSegResults.push(matchSeg ? matchSeg.nameOriginal : displayText);
+      resultUl.appendChild(li);
       continue;
     }
 
-    // Outcome for sub-segment matching input (with parentheses and not all segment)
     li.textContent = valToMatchNormalized;
 
     if (matchSub) {
@@ -416,7 +434,6 @@ function processInput() {
       li.appendChild(descSpan);
     }
 
-    // Also highlight segment if found (optional, can be removed if you want strict ignore)
     if (matchSeg) {
       matchSeg.rowElem.classList.add(
         "highlight-name",
@@ -428,7 +445,6 @@ function processInput() {
       li.appendChild(descSpan);
     }
 
-    // If sub-segment no match, but parentheses present, output the parentheses content as-is
     if (!matchSub && !matchSeg && parenMatch) {
       li.textContent = `${parenMatch[1]} – No match found`;
       finalSubSegResults.push(parenMatch[1]);
@@ -445,13 +461,7 @@ function processInput() {
       ) {
         finalSubSegResults.push(matchSub.nameOriginal);
       } else if (matchSub.status.type === "remap") {
-        const remapTarget = findRemapTargetName(matchSub, subSegmentsData);
-        const targetRow = subSegmentsData.find(
-          (d) => d.nameOriginal === remapTarget
-        );
-        finalSubSegResults.push(
-          targetRow ? targetRow.nameOriginal : matchSub.nameOriginal
-        );
+        finalSubSegResults.push(matchSub.nameOriginal);
       } else {
         finalSubSegResults.push(matchSub.nameOriginal);
       }
@@ -464,13 +474,7 @@ function processInput() {
       ) {
         finalSegResults.push(matchSeg.nameOriginal);
       } else if (matchSeg.status.type === "remap") {
-        const remapTarget = findRemapTargetName(matchSeg, segmentsData);
-        const targetRow = segmentsData.find(
-          (d) => d.nameOriginal === remapTarget
-        );
-        finalSegResults.push(
-          targetRow ? targetRow.nameOriginal : matchSeg.nameOriginal
-        );
+        finalSegResults.push(matchSeg.nameOriginal);
       } else {
         finalSegResults.push(matchSeg.nameOriginal);
       }
@@ -493,15 +497,108 @@ function processInput() {
   document.getElementById(
     "segmentCount"
   ).textContent = `Count: ${finalSegResults.length}`;
+}
 
-  document.getElementById("copySubSegment").onclick = () => {
-    navigator.clipboard.writeText(finalSubSegResults.join("\n")).then(() => {
-      alert("Sub-segment results copied to clipboard.");
-    });
-  };
-  document.getElementById("copySegment").onclick = () => {
-    navigator.clipboard.writeText(finalSegResults.join("\n")).then(() => {
-      alert("Segment results copied to clipboard.");
-    });
-  };
+function processIndustryInput() {
+  const rawInput = document.getElementById("industryUserInput").value.trim();
+  const inputListContainer = document.getElementById("industryInputList");
+  const finalVerticalOutput = document.getElementById("finalVerticalOutput");
+  const finalIndustryOutput = document.getElementById("finalIndustryOutput");
+
+  inputListContainer.innerHTML = "";
+  finalVerticalOutput.innerHTML = "";
+  finalIndustryOutput.innerHTML = "";
+  finalVerticalResults = [];
+  finalIndustryResults = [];
+
+  if (!rawInput) {
+    inputListContainer.innerHTML = "<p>No input provided.</p>";
+    return;
+  }
+
+  // Split input into trimmed lines
+  let rawItems = rawInput.split(",").map((i) => i.trim());
+
+  // Process each item: remove "(Deprecated)" substring (case insensitive) but still keep the rest for matching
+  const cleanedItems = rawItems.map((i) =>
+    i.replace(/\(Deprecated\)/gi, "").trim()
+  );
+
+  // Identify industries with (All Verticals) in cleaned items
+  const industriesWithAllVerticals = new Set();
+  cleanedItems.forEach((i) => {
+    const parenMatch = i.match(/\(([^)]+)\)/);
+    if (parenMatch && parenMatch[1].trim().toLowerCase() === "all verticals") {
+      industriesWithAllVerticals.add(
+        getTextOutsideParentheses(i).toLowerCase()
+      );
+    }
+  });
+
+  // Filter out verticals of industries with (All Verticals)
+  const filteredItems = cleanedItems.filter((i) => {
+    const parenMatch = i.match(/\(([^)]+)\)/);
+    if (!parenMatch) return true;
+    const parenContent = parenMatch[1].trim().toLowerCase();
+    const baseName = getTextOutsideParentheses(i).toLowerCase();
+    if (parenContent === "all verticals") return true;
+    if (industriesWithAllVerticals.has(baseName)) return false;
+    return true;
+  });
+
+  // Deduplicate output arrays
+  const dedupIndustry = new Set();
+  const dedupVertical = new Set();
+  const ul = document.createElement("ul");
+
+  filteredItems.forEach((i) => {
+    const parenMatch = i.match(/\(([^)]+)\)/);
+    const inputTextNoParen = getTextOutsideParentheses(i);
+    const parenText = parenMatch ? parenMatch[1].trim() : null;
+
+    const li = document.createElement("li");
+
+    if (parenText && parenText.toLowerCase() === "all verticals") {
+      if (!dedupIndustry.has(inputTextNoParen.toLowerCase())) {
+        li.textContent = inputTextNoParen + " (Industry)";
+        finalIndustryResults.push(inputTextNoParen);
+        dedupIndustry.add(inputTextNoParen.toLowerCase());
+      } else {
+        return; // skip duplicate
+      }
+    } else if (parenText) {
+      if (!dedupVertical.has(parenText.toLowerCase())) {
+        li.textContent = parenText + " (Vertical)";
+        finalVerticalResults.push(parenText);
+        dedupVertical.add(parenText.toLowerCase());
+      } else {
+        return; // skip duplicate
+      }
+    } else {
+      li.textContent = `${i} – No parentheses found, cannot determine Industry or Vertical`;
+    }
+
+    ul.appendChild(li);
+  });
+
+  inputListContainer.appendChild(ul);
+
+  finalVerticalOutput.innerHTML = finalVerticalResults.length
+    ? `<ul>${finalVerticalResults
+        .map((txt) => `<li>${txt}</li>`)
+        .join("")}</ul>`
+    : "<p>No vertical matches found.</p>";
+
+  finalIndustryOutput.innerHTML = finalIndustryResults.length
+    ? `<ul>${finalIndustryResults
+        .map((txt) => `<li>${txt}</li>`)
+        .join("")}</ul>`
+    : "<p>No industry matches found.</p>";
+
+  document.getElementById(
+    "verticalCount"
+  ).textContent = `Count: ${finalVerticalResults.length}`;
+  document.getElementById(
+    "industryCount"
+  ).textContent = `Count: ${finalIndustryResults.length}`;
 }
