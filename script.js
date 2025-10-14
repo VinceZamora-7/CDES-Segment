@@ -693,10 +693,25 @@ function processIndustryInput() {
   }
 
   // 2. Data Processing (Delegated to helper)
+  // The user wants to split the raw input by the string delimiter "),".
+  // This requires reconstructing the items by re-adding the ')' character
+  // which is consumed (discarded) by the split() function.
+
   const rawItems = rawInput
-    .split(",")
-    .map((i) => i.trim())
-    .filter((i) => i);
+    .split("),")
+    .map((item, index, arr) => {
+      let trimmedItem = item.trim();
+
+      // If it is NOT the last item in the array, it means the ')' was consumed
+      // by the split, so we must re-append it.
+      // We also check that the item is not empty before re-appending.
+      if (index < arr.length - 1 && trimmedItem.length > 0) {
+        trimmedItem += ")";
+      }
+      return trimmedItem;
+    })
+    .filter((i) => i.length > 0); // Filter out any resulting empty strings
+
   const { industries, verticals } = extractIndustryAndVertical(rawItems);
 
   finalIndustryResults = industries;
