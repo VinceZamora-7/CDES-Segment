@@ -1,4 +1,4 @@
-// Static data arrays for segments and sub-segments
+// Static data arrays for segments and sub-segments (KEPT AS IS)
 const segmentsDataStatic = [
   {
     name: "Enterprise Digital Natives",
@@ -31,7 +31,7 @@ const segmentsDataStatic = [
     description: "Renamed to “Upper Majors Commercial”",
   },
   {
-    name: "Major Public Sector  ",
+    name: "Major Public Sector  ",
     tag: "Renamed",
     description: "Renamed to “Upper Majors Public Sector”",
   },
@@ -106,7 +106,7 @@ const subSegmentsDataStatic = [
   {
     name: "SM&C Commercial - SMB Default",
     tag: "Renamed",
-    description: 'Renamed to "SME&C - SMB Default"',
+    description: 'Renamed to "SME&C Commercial - SMB Default"',
   },
   {
     name: "SM&C Education - Corporate",
@@ -131,7 +131,7 @@ const subSegmentsDataStatic = [
   {
     name: "Strategic - Commercial Other",
     tag: "Renamed",
-    description: 'Renamed to "Strategic - Commercial "',
+    description: 'Renamed to "Strategic - Commercial"',
   },
   { name: "Major - Health", tag: "Deleted", description: "Deleted" },
   {
@@ -139,30 +139,30 @@ const subSegmentsDataStatic = [
     tag: "Deleted",
     description: "Deleted",
   },
-  { name: "Strategic - Health", tag: "Deleted", description: "Deleted" },
+  { name: "Strategic - Health", tag: "Deleted", description: "Deleted" },
   {
-    name: "SME&C Commercial – SMB Default",
+    name: "SME&C Commercial - SMB Default",
     tag: "Remap",
-    description: "Remap to SME&C - SMB Commercial Segment",
+    description: 'Remap to "SME&C - SMB Commercial Segment"',
   },
   {
     name: "SME&C - SMB Commercial",
     tag: "Remap",
-    description: "Remap to SME&C - SMB Commercial Segment",
+    description: 'Remap to "SME&C - SMB Commercial Segment"',
   },
   {
     name: "SME&C - SMB Education",
     tag: "Remap",
-    description: "Remap to SME&C - SMB Public Sector Segment",
+    description: 'Remap to "SME&C - SMB Public Sector Segment"',
   },
   {
     name: "SME&C - SMB Government",
     tag: "Remap",
-    description: "Remap to SME&C - SMB Public Sector Segment",
+    description: 'Remap to "SME&C - SMB Public Sector Segment"',
   },
 ];
 
-// Utility functions
+// Utility functions (KEPT AS IS)
 const decodeHtmlEntities = (text) => {
   const el = document.createElement("textarea");
   el.innerHTML = text;
@@ -171,11 +171,17 @@ const decodeHtmlEntities = (text) => {
 
 const normalizeText = (text) => {
   if (!text) return "";
-  return decodeHtmlEntities(text).replace(/[-–—]/g, "-").trim().toLowerCase();
+  // Replaced the old regex with a more robust one for quotes and also normalizing spaces
+  return decodeHtmlEntities(text)
+    .replace(/[-–—]/g, "-")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 };
 
 const extractTextInQuotes = (text) => {
-  const m = text.match(/[“"”](.*?)[”"]/);
+  // Matches content inside any of "...", '...', “...”
+  const m = text.match(/[“"'”](.*?)[”"']/);
   return m ? m[1].trim() : null;
 };
 
@@ -185,19 +191,26 @@ const getTextOutsideParentheses = (text) =>
 const isAllSegmentInParentheses = (text) => {
   const m = text.match(/\(([^)]+)\)/);
   if (!m) return false;
-  const val = m[1].toLowerCase();
+  const val = m[1].toLowerCase().trim();
   return val === "all segment" || val === "all segments";
 };
 
 const clearHighlights = (tbody) => {
   Array.from(tbody.rows).forEach((row) => {
-    row.classList.remove("highlight-name", "mapped", "renamed", "remap");
+    row.classList.remove(
+      "highlight-name",
+      "mapped",
+      "renamed",
+      "remap",
+      "deleted"
+    );
   });
 };
 
+// ... (createTable function is unchanged as it's purely for setup)
 function createTable(data, headers) {
   const table = document.createElement("table");
-  table.id = headers[0].toLowerCase().replace(/\s/g, "") + "Table";
+  table.id = headers[0].toLowerCase().replace(/[\s-]/g, "") + "Table"; // Improved ID generation
   table.setAttribute("aria-label", headers.join(" & ") + " Table");
   const thead = document.createElement("thead");
   const trHead = document.createElement("tr");
@@ -227,7 +240,7 @@ function createTable(data, headers) {
   return table;
 }
 
-// Declare global variables for tables and results
+// Declare global variables for tables and results (KEPT AS IS)
 let segmentsTable;
 let subSegmentsTable;
 
@@ -237,6 +250,7 @@ let finalSegResults = [];
 let finalVerticalResults = [];
 let finalIndustryResults = [];
 
+// DOMContentLoaded (KEPT AS IS)
 document.addEventListener("DOMContentLoaded", () => {
   // build tables
   segmentsTable = createTable(segmentsDataStatic, ["Segment", "Description"]);
@@ -307,12 +321,229 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// --- Part 1: Refactored Segment & Sub-segment Processing ---
+
+/**
+ * Creates an array of searchable objects from an HTML table's rows.
+ * Separates data processing from DOM structure.
+ * @param {string} tableId The ID of the HTML table (e.g., 'segmentTable').
+ * @param {Array<Object>} staticData The initial static data array.
+ * @returns {Array<Object>} The mapped searchable data array.
+ */
+const getSearchableData = (tableId, staticData) => {
+  const table = document.getElementById(tableId);
+  if (!table || !table.tBodies[0]) return [];
+
+  return Array.from(table.tBodies[0].rows).map((row, index) => {
+    const nameOriginal = row.cells[0].textContent;
+    const description = row.cells[1].textContent;
+    const statusType = row.getAttribute("data-status");
+
+    return {
+      // Keep a reference to the DOM element for later highlighting
+      rowElem: row,
+      // Original, clean name
+      nameOriginal,
+      // Normalized name for primary matching
+      nameNormalized: normalizeText(nameOriginal),
+      // Original description text
+      description,
+      // Normalized name extracted from quotes in the description for secondary matching (e.g., 'Renamed to "X"')
+      descriptionQuoteNormalized: normalizeText(
+        extractTextInQuotes(description)
+      ),
+      status: {
+        type: statusType,
+        className: statusType,
+      },
+      // Include the original static data item if needed, useful for testability
+      staticItem: staticData[index],
+    };
+  });
+};
+
+/**
+ * Encapsulates the core matching logic for a single input item against
+ * the segment and sub-segment datasets, implementing the Mapped-Priority rule.
+ * @param {string} rawInputItem The raw string input item (e.g., 'Industry A (Vertical B)').
+ * @param {Array<Object>} segmentsData The searchable segments data.
+ * @param {Array<Object>} subSegmentsData The searchable sub-segments data.
+ * @returns {Object} The matching result object.
+ */
+const findSegmentMatch = (rawInputItem, segmentsData, subSegmentsData) => {
+  const parenMatch = rawInputItem.match(/\(([^)]+)\)/);
+  const treatAsSegment = !parenMatch || isAllSegmentInParentheses(rawInputItem);
+
+  let valToMatchNormalized;
+  let displayText;
+
+  if (treatAsSegment) {
+    displayText = getTextOutsideParentheses(rawInputItem);
+    valToMatchNormalized = normalizeText(displayText);
+  } else {
+    // Match on content inside parentheses for sub-segments
+    displayText = parenMatch[1].trim();
+    valToMatchNormalized = normalizeText(displayText);
+  }
+
+  let matchType = "none";
+  let matchedItem = null;
+
+  if (treatAsSegment) {
+    // --- Segment Logic (KEPT AS IS) ---
+    matchedItem = segmentsData.find(
+      (d) =>
+        d.nameNormalized === valToMatchNormalized ||
+        d.descriptionQuoteNormalized === valToMatchNormalized
+    );
+    if (matchedItem) {
+      matchType = "segment";
+    }
+  } else {
+    // --- Sub-segment Logic (MODIFIED) ---
+
+    // 1. Filter data to only include Mapped or Renamed items
+    const eligibleSubSegments = subSegmentsData.filter(
+      (d) =>
+        d.status.type.toLowerCase() === "mapped" ||
+        d.status.type.toLowerCase() === "renamed"
+    );
+
+    // Priority 1: Direct exact NAME match AND status is "Mapped"
+    let potentialSubSegmentMatch = eligibleSubSegments.find(
+      (d) =>
+        d.nameNormalized === valToMatchNormalized &&
+        d.status.type.toLowerCase() === "mapped"
+    );
+
+    if (potentialSubSegmentMatch) {
+      matchedItem = potentialSubSegmentMatch;
+      matchType = "subsegment";
+    } else {
+      // Priority 2: Exact DESCRIPTION QUOTE match AND status is "Renamed"
+      potentialSubSegmentMatch = eligibleSubSegments.find(
+        (d) =>
+          d.descriptionQuoteNormalized === valToMatchNormalized &&
+          d.status.type.toLowerCase() === "renamed"
+      );
+
+      if (potentialSubSegmentMatch) {
+        matchedItem = potentialSubSegmentMatch;
+        matchType = "subsegment";
+      }
+    }
+
+    // Fallback: If still no sub-segment match, fallback to segment match (KEPT AS IS)
+    if (matchType === "none") {
+      const segmentMatch = segmentsData.find(
+        (d) =>
+          d.nameNormalized === valToMatchNormalized ||
+          d.descriptionQuoteNormalized === valToMatchNormalized
+      );
+      if (segmentMatch) {
+        matchedItem = segmentMatch;
+        matchType = "segment";
+      }
+    }
+  }
+
+  return {
+    matchType,
+    matchedItem,
+    displayText,
+    treatAsSegment,
+    rawInputItem,
+  };
+};
+
+/**
+ * Renders a single list item in the input list based on the match result.
+ * @param {HTMLElement} ulContainer The UL element to append the LI to.
+ * @param {Object} matchResult The result from findSegmentMatch.
+ * @param {Array<string>} finalSegResultsRef The array to push final Segment results to.
+ * @param {Array<string>} finalSubSegResultsRef The array to push final Sub-segment results to.
+ */
+const renderSegmentMatchResult = (
+  ulContainer,
+  { matchType, matchedItem, displayText, treatAsSegment, rawInputItem },
+  finalSegResultsRef,
+  finalSubSegResultsRef
+) => {
+  const li = document.createElement("li");
+
+  if (treatAsSegment) {
+    // --- Segment Logic ---
+    li.textContent = displayText;
+    if (matchedItem) {
+      // Highlight the DOM row
+      matchedItem.rowElem.classList.add(
+        "highlight-name",
+        matchedItem.status.className
+      );
+      const descSpan = document.createElement("span");
+      descSpan.classList.add("found-description");
+      descSpan.textContent = ` (Segment) – ${matchedItem.description}`;
+      li.appendChild(descSpan);
+      finalSegResultsRef.push(matchedItem.nameOriginal);
+    } else {
+      li.textContent += " – No segment match found";
+      finalSegResultsRef.push(displayText); // Push the original text if no match
+    }
+  } else {
+    // --- Sub-segment Logic ---
+    if (matchedItem) {
+      const typeLabel = matchType === "subsegment" ? "Sub-segment" : "Segment";
+      const pushArray =
+        matchType === "subsegment" ? finalSubSegResultsRef : finalSegResultsRef;
+      const outputName = matchedItem.nameOriginal;
+
+      li.textContent = displayText; // Text from inside parentheses
+      const descSpan = document.createElement("span");
+      descSpan.classList.add("found-description");
+      descSpan.textContent = ` (${typeLabel}) – ${matchedItem.description}`;
+      li.appendChild(descSpan);
+      li.classList.add(matchedItem.status.className);
+
+      if (matchType === "subsegment") {
+        // Any subsegment match that reaches here is valid based on the new logic
+        matchedItem.rowElem.classList.add(
+          "highlight-name",
+          matchedItem.status.className
+        );
+        if (!pushArray.includes(outputName)) {
+          pushArray.push(outputName);
+        }
+      } else {
+        // If the match fell back to a Segment (matchType === 'segment'), output the Segment name
+        matchedItem.rowElem.classList.add(
+          "highlight-name",
+          matchedItem.status.className
+        );
+        if (!pushArray.includes(outputName)) {
+          pushArray.push(outputName);
+        }
+      }
+    } else {
+      // No match found for the content inside parentheses
+      li.textContent = `${displayText} – No match found`;
+      finalSubSegResultsRef.push(displayText);
+    }
+  }
+
+  ulContainer.appendChild(li);
+};
+
+/**
+ * Main function for processing segment/sub-segment input.
+ * Now streamlined to coordinate helper functions and handle DOM updates.
+ */
 function processInput() {
   const rawInput = document.getElementById("userInput").value.trim();
   const inputListContainer = document.getElementById("inputList");
   const finalSubSegOutput = document.getElementById("finalSubSegmentOutput");
   const finalSegOutput = document.getElementById("finalSegmentOutput");
 
+  // 1. Reset State and UI
   inputListContainer.innerHTML = "";
   finalSubSegOutput.innerHTML = "";
   finalSegOutput.innerHTML = "";
@@ -327,184 +558,129 @@ function processInput() {
   clearHighlights(segmentsTable.tBodies[0]);
   clearHighlights(subSegmentsTable.tBodies[0]);
 
-  const rawItems = rawInput.split(",").map((i) => i.trim());
-
-  const segmentsData = Array.from(segmentsTable.tBodies[0].rows).map((row) => ({
-    rowElem: row,
-    nameOriginal: row.cells[0].textContent,
-    name: normalizeText(row.cells[0].textContent),
-    description: row.cells[1].textContent,
-    descriptionQuote: normalizeText(
-      extractTextInQuotes(row.cells[1].textContent)
-    ),
-    status: {
-      type: row.getAttribute("data-status"),
-      className: row.getAttribute("data-status"),
-    },
-  }));
-
-  const subSegmentsData = Array.from(subSegmentsTable.tBodies[0].rows).map(
-    (row) => ({
-      rowElem: row,
-      nameOriginal: row.cells[0].textContent,
-      name: normalizeText(row.cells[0].textContent),
-      description: row.cells[1].textContent,
-      descriptionQuote: normalizeText(
-        extractTextInQuotes(row.cells[1].textContent)
-      ),
-      status: {
-        type: row.getAttribute("data-status"),
-        className: row.getAttribute("data-status"),
-      },
-    })
+  // 2. Prepare Data
+  const rawItems = rawInput
+    .split(",")
+    .map((i) => i.trim())
+    .filter((i) => i);
+  const segmentsData = getSearchableData("segmentTable", segmentsDataStatic);
+  const subSegmentsData = getSearchableData(
+    "subsegmentTable",
+    subSegmentsDataStatic
   );
 
+  // 3. Process and Render
   const resultUl = document.createElement("ul");
 
   for (const rawVal of rawItems) {
-    const parenMatch = rawVal.match(/\(([^)]+)\)/);
-    const treatAsSegment = !parenMatch || isAllSegmentInParentheses(rawVal);
-    const valToMatchNormalized = treatAsSegment
-      ? normalizeText(getTextOutsideParentheses(rawVal))
-      : normalizeText(parenMatch[1].trim());
-
-    let matchSeg = null;
-    let matchSub = null;
-
-    if (treatAsSegment) {
-      matchSeg = segmentsData.find(
-        (d) =>
-          d.name === valToMatchNormalized ||
-          d.descriptionQuote === valToMatchNormalized
-      );
-    }
-
-    if (!treatAsSegment && parenMatch) {
-      matchSub = subSegmentsData.find(
-        (d) =>
-          d.name === valToMatchNormalized ||
-          d.descriptionQuote === valToMatchNormalized
-      );
-
-      if (!matchSub) {
-        const renamedSub = subSegmentsData.find(
-          (d) =>
-            d.status.type === "renamed" &&
-            normalizeText(d.description).includes(valToMatchNormalized)
-        );
-        if (renamedSub) matchSub = renamedSub;
-      }
-    }
-
-    const li = document.createElement("li");
-
-    if (treatAsSegment) {
-      const displayText = getTextOutsideParentheses(rawVal);
-      li.textContent = displayText;
-
-      if (matchSeg) {
-        matchSeg.rowElem.classList.add(
-          "highlight-name",
-          matchSeg.status.className
-        );
-        const descSpan = document.createElement("span");
-        descSpan.classList.add("found-description");
-        descSpan.textContent = ` (Segment) – ${matchSeg.description}`;
-        li.appendChild(descSpan);
-      } else {
-        li.textContent += " – No segment match found";
-      }
-
-      finalSegResults.push(matchSeg ? matchSeg.nameOriginal : displayText);
-      resultUl.appendChild(li);
-      continue;
-    }
-
-    li.textContent = valToMatchNormalized;
-
-    if (matchSub) {
-      matchSub.rowElem.classList.add(
-        "highlight-name",
-        matchSub.status.className
-      );
-      li.classList.add(matchSub.status.className);
-      const descSpan = document.createElement("span");
-      descSpan.classList.add("found-description");
-      descSpan.textContent = ` (Sub-segment) – ${matchSub.description}`;
-      li.appendChild(descSpan);
-    }
-
-    if (matchSeg) {
-      matchSeg.rowElem.classList.add(
-        "highlight-name",
-        matchSeg.status.className
-      );
-      const descSpan = document.createElement("span");
-      descSpan.classList.add("found-description");
-      descSpan.textContent = ` (Segment) – ${matchSeg.description}`;
-      li.appendChild(descSpan);
-    }
-
-    if (!matchSub && !matchSeg && parenMatch) {
-      li.textContent = `${parenMatch[1]} – No match found`;
-      finalSubSegResults.push(parenMatch[1]);
-      resultUl.appendChild(li);
-      continue;
-    }
-
-    resultUl.appendChild(li);
-
-    if (!matchSeg && matchSub) {
-      if (
-        matchSub.status.type === "mapped" ||
-        matchSub.status.type === "renamed"
-      ) {
-        finalSubSegResults.push(matchSub.nameOriginal);
-      } else if (matchSub.status.type === "remap") {
-        finalSubSegResults.push(matchSub.nameOriginal);
-      } else {
-        finalSubSegResults.push(matchSub.nameOriginal);
-      }
-    }
-
-    if (matchSeg) {
-      if (
-        matchSeg.status.type === "mapped" ||
-        matchSeg.status.type === "renamed"
-      ) {
-        finalSegResults.push(matchSeg.nameOriginal);
-      } else if (matchSeg.status.type === "remap") {
-        finalSegResults.push(matchSeg.nameOriginal);
-      } else {
-        finalSegResults.push(matchSeg.nameOriginal);
-      }
-    }
+    const matchResult = findSegmentMatch(rawVal, segmentsData, subSegmentsData);
+    renderSegmentMatchResult(
+      resultUl,
+      matchResult,
+      finalSegResults,
+      finalSubSegResults
+    );
   }
 
   inputListContainer.appendChild(resultUl);
 
-  finalSubSegOutput.innerHTML = finalSubSegResults.length
-    ? `<ul>${finalSubSegResults.map((txt) => `<li>${txt}</li>`).join("")}</ul>`
-    : "<p>No sub-segment matches found.</p>";
+  // 4. Final Output Rendering
+  const renderFinalOutput = (results, outputElement, countElement, label) => {
+    const dedupedResults = Array.from(new Set(results));
+    outputElement.innerHTML = dedupedResults.length
+      ? `<ul>${dedupedResults.map((txt) => `<li>${txt}</li>`).join("")}</ul>`
+      : `<p>No ${label.toLowerCase()} matches found.</p>`;
+    countElement.textContent = `Count: ${dedupedResults.length}`;
+  };
 
-  finalSegOutput.innerHTML = finalSegResults.length
-    ? `<ul>${finalSegResults.map((txt) => `<li>${txt}</li>`).join("")}</ul>`
-    : "<p>No segment matches found.</p>";
-
-  document.getElementById(
-    "subSegmentCount"
-  ).textContent = `Count: ${finalSubSegResults.length}`;
-  document.getElementById(
-    "segmentCount"
-  ).textContent = `Count: ${finalSegResults.length}`;
+  renderFinalOutput(
+    finalSubSegResults,
+    finalSubSegOutput,
+    document.getElementById("subSegmentCount"),
+    "sub-segment"
+  );
+  renderFinalOutput(
+    finalSegResults,
+    finalSegOutput,
+    document.getElementById("segmentCount"),
+    "segment"
+  );
 }
 
+// --- Part 2: Refactored Industry/Vertical Processing (UNCHANGED) ---
+
+/**
+ * Parses, filters, and deduplicates the raw industry/vertical input list.
+ * Implements the crucial "All Verticals" rule.
+ * @param {Array<string>} rawInputList Array of raw string inputs.
+ * @returns {{industries: string[], verticals: string[]}} Object containing deduplicated, filtered arrays.
+ */
+const extractIndustryAndVertical = (rawInputList) => {
+  const industriesWithAllVerticals = new Set();
+  const industryCandidates = [];
+  const verticalCandidates = [];
+
+  // Step 1: Clean and Parse Input
+  const cleanedItems = rawInputList
+    .map((i) => i.replace(/\(Deprecated\)/gi, "").trim())
+    .filter((i) => i);
+
+  // Step 2: Identify all industries listed with "(All Verticals)"
+  cleanedItems.forEach((i) => {
+    const parenMatch = i.match(/\(([^)]+)\)/);
+    const industryName = getTextOutsideParentheses(i);
+
+    if (parenMatch && parenMatch[1].trim().toLowerCase() === "all verticals") {
+      industriesWithAllVerticals.add(industryName.toLowerCase());
+      industryCandidates.push(industryName);
+    }
+  });
+
+  // Step 3: Apply the "All Verticals" filtering rule and collect final candidates
+  cleanedItems.forEach((i) => {
+    const parenMatch = i.match(/\(([^)]+)\)/);
+    const industryName = getTextOutsideParentheses(i);
+    const verticalName = parenMatch ? parenMatch[1].trim() : null;
+    const isAllVerticals =
+      verticalName && verticalName.toLowerCase() === "all verticals";
+
+    if (!parenMatch) {
+      // No parentheses, cannot determine type, we just ignore for final results (or could log an error)
+      return;
+    }
+
+    if (isAllVerticals) {
+      // Already added to candidates in Step 2
+      return;
+    }
+
+    // If a specific vertical is for an industry that has "(All Verticals)", discard it.
+    if (industriesWithAllVerticals.has(industryName.toLowerCase())) {
+      return;
+    }
+
+    // It's a valid specific Vertical
+    verticalCandidates.push(verticalName);
+  });
+
+  // Step 4: Deduplicate and return
+  return {
+    industries: Array.from(new Set(industryCandidates)),
+    verticals: Array.from(new Set(verticalCandidates)),
+  };
+};
+
+/**
+ * Main function for processing industry/vertical input.
+ * Now streamlined to call extractIndustryAndVertical and focus purely on DOM rendering.
+ */
 function processIndustryInput() {
   const rawInput = document.getElementById("industryUserInput").value.trim();
   const inputListContainer = document.getElementById("industryInputList");
   const finalVerticalOutput = document.getElementById("finalVerticalOutput");
   const finalIndustryOutput = document.getElementById("finalIndustryOutput");
 
+  // 1. Reset State and UI
   inputListContainer.innerHTML = "";
   finalVerticalOutput.innerHTML = "";
   finalIndustryOutput.innerHTML = "";
@@ -516,89 +692,78 @@ function processIndustryInput() {
     return;
   }
 
-  // Split input into trimmed lines
-  let rawItems = rawInput.split(",").map((i) => i.trim());
+  // 2. Data Processing (Delegated to helper)
+  const rawItems = rawInput
+    .split(",")
+    .map((i) => i.trim())
+    .filter((i) => i);
+  const { industries, verticals } = extractIndustryAndVertical(rawItems);
 
-  // Process each item: remove "(Deprecated)" substring (case insensitive) but still keep the rest for matching
-  const cleanedItems = rawItems.map((i) =>
-    i.replace(/\(Deprecated\)/gi, "").trim()
-  );
+  finalIndustryResults = industries;
+  finalVerticalResults = verticals;
 
-  // Identify industries with (All Verticals) in cleaned items
-  const industriesWithAllVerticals = new Set();
-  cleanedItems.forEach((i) => {
-    const parenMatch = i.match(/\(([^)]+)\)/);
-    if (parenMatch && parenMatch[1].trim().toLowerCase() === "all verticals") {
-      industriesWithAllVerticals.add(
-        getTextOutsideParentheses(i).toLowerCase()
-      );
-    }
-  });
-
-  // Filter out verticals of industries with (All Verticals)
-  const filteredItems = cleanedItems.filter((i) => {
-    const parenMatch = i.match(/\(([^)]+)\)/);
-    if (!parenMatch) return true;
-    const parenContent = parenMatch[1].trim().toLowerCase();
-    const baseName = getTextOutsideParentheses(i).toLowerCase();
-    if (parenContent === "all verticals") return true;
-    if (industriesWithAllVerticals.has(baseName)) return false;
-    return true;
-  });
-
-  // Deduplicate output arrays
-  const dedupIndustry = new Set();
-  const dedupVertical = new Set();
-  const ul = document.createElement("ul");
-
-  filteredItems.forEach((i) => {
-    const parenMatch = i.match(/\(([^)]+)\)/);
-    const inputTextNoParen = getTextOutsideParentheses(i);
-    const parenText = parenMatch ? parenMatch[1].trim() : null;
-
+  // 3. Input List Rendering (for immediate user feedback)
+  const resultUl = document.createElement("ul");
+  industries.forEach((name) => {
     const li = document.createElement("li");
-
-    if (parenText && parenText.toLowerCase() === "all verticals") {
-      if (!dedupIndustry.has(inputTextNoParen.toLowerCase())) {
-        li.textContent = inputTextNoParen + " (Industry)";
-        finalIndustryResults.push(inputTextNoParen);
-        dedupIndustry.add(inputTextNoParen.toLowerCase());
-      } else {
-        return; // skip duplicate
-      }
-    } else if (parenText) {
-      if (!dedupVertical.has(parenText.toLowerCase())) {
-        li.textContent = parenText + " (Vertical)";
-        finalVerticalResults.push(parenText);
-        dedupVertical.add(parenText.toLowerCase());
-      } else {
-        return; // skip duplicate
-      }
-    } else {
-      li.textContent = `${i} – No parentheses found, cannot determine Industry or Vertical`;
-    }
-
-    ul.appendChild(li);
+    li.textContent = `${name} (Industry)`;
+    resultUl.appendChild(li);
+  });
+  verticals.forEach((name) => {
+    const li = document.createElement("li");
+    li.textContent = `${name} (Vertical)`;
+    resultUl.appendChild(li);
   });
 
-  inputListContainer.appendChild(ul);
+  // Add list items for any raw input that was filtered out due to the "All Verticals" rule or had no parens (for feedback)
+  const allResultNames = new Set([...industries, ...verticals]);
+  rawItems.forEach((rawItem) => {
+    const cleanedItem = rawItem.replace(/\(Deprecated\)/gi, "").trim();
+    const parenMatch = cleanedItem.match(/\(([^)]+)\)/);
 
-  finalVerticalOutput.innerHTML = finalVerticalResults.length
-    ? `<ul>${finalVerticalResults
-        .map((txt) => `<li>${txt}</li>`)
-        .join("")}</ul>`
-    : "<p>No vertical matches found.</p>";
+    if (!parenMatch) {
+      const li = document.createElement("li");
+      li.textContent = `${rawItem} – No parentheses found, cannot determine Industry or Vertical (Filtered)`;
+      resultUl.appendChild(li);
+      return;
+    }
 
-  finalIndustryOutput.innerHTML = finalIndustryResults.length
-    ? `<ul>${finalIndustryResults
-        .map((txt) => `<li>${txt}</li>`)
-        .join("")}</ul>`
-    : "<p>No industry matches found.</p>";
+    const industryName = getTextOutsideParentheses(cleanedItem);
+    const verticalName = parenMatch[1].trim();
 
-  document.getElementById(
-    "verticalCount"
-  ).textContent = `Count: ${finalVerticalResults.length}`;
-  document.getElementById(
-    "industryCount"
-  ).textContent = `Count: ${finalIndustryResults.length}`;
+    if (
+      verticalName.toLowerCase() !== "all verticals" &&
+      industries
+        .map((i) => i.toLowerCase())
+        .includes(industryName.toLowerCase())
+    ) {
+      const li = document.createElement("li");
+      li.textContent = `${rawItem} – Vertical discarded (Industry listed with "All Verticals")`;
+      li.classList.add("discarded-item");
+      resultUl.appendChild(li);
+    }
+  });
+
+  inputListContainer.appendChild(resultUl);
+
+  // 4. Final Output Rendering
+  const renderFinalOutput = (results, outputElement, countElement, label) => {
+    outputElement.innerHTML = results.length
+      ? `<ul>${results.map((txt) => `<li>${txt}</li>`).join("")}</ul>`
+      : `<p>No ${label.toLowerCase()} found.</p>`;
+    countElement.textContent = `Count: ${results.length}`;
+  };
+
+  renderFinalOutput(
+    finalVerticalResults,
+    finalVerticalOutput,
+    document.getElementById("verticalCount"),
+    "verticals"
+  );
+  renderFinalOutput(
+    finalIndustryResults,
+    finalIndustryOutput,
+    document.getElementById("industryCount"),
+    "industries"
+  );
 }
