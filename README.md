@@ -6,116 +6,119 @@
 </head>
 <body>
 
-<h1>Segment & Sub-segment Matching System</h1>
+<h1>Segment & Data Mapping Tool</h1>
 
 <section>
   <h2>Overview</h2>
-  <p>This system processes comma-separated user input strings and matches them against predefined segment and sub-segment datasets. It supports advanced rules to differentiate when to match segments versus sub-segments, including handling of parentheses in inputs, renamed entries, and remappings.</p>
+  <p>This tool is designed to process and map two distinct types of user input: **Segments/Sub-segments** and **Industries/Verticals**. It applies specific, priority-based matching rules to resolve modern data categories from historical or raw input strings.</p>
 </section>
 
 <section>
-  <h2>Features</h2>
+  <h2>Tool Selection & Datasets</h2>
+  <p>Use the radio buttons to switch between the two distinct processing modes:</p>
   <ul>
-    <li>Segments matched if input has no parentheses or parentheses contain <code>all segment</code> or <code>all segments</code>.</li>
-    <li>Sub-segments matched if input has parentheses with other content, using inner parentheses text as key.</li>
-    <li>Supports <code>Mapped</code>, <code>Renamed</code>, and <code>Remap</code> tags for entries for resolving names.</li>
-    <li>Highlights matched rows in respective tables for visual feedback.</li>
-    <li>Displays matched results separately for segments and sub-segments.</li>
-    <li>Fallback to showing unmatched parentheses content for sub-segments.</li>
-    <li>Copy-to-clipboard functionality for results.</li>
+    <li>
+      <strong>Segment & Sub-segment Tool:</strong> Maps input against the **Segments** and **Sub-segments** static tables (visible below).
+    </li>
+    <li>
+      <strong>Industry & Vertical Tool:</strong> Processes input to extract Industries and Verticals based on a strict **"All Verticals"** hierarchy rule.
+    </li>
+  </ul>
+  <p>Entry tags include <code>Mapped</code>, <code>Renamed</code>, <code>Remap</code>, and <code>Deleted</code> (excluded from matching).</p>
+</section>
+
+<section>
+  <h2>1. Segment & Sub-segment Processing Rules</h2>
+  <p>Input is processed as a sub-segment first if it contains content within parentheses. If no match is found, it attempts to match the content against the Segment list.</p>
+
+  <h3>A. Segment Matching (Priority when no parentheses or 'All Segment')</h3>
+  <ul>
+    <li>Triggers when the input string **does not contain parentheses** OR parentheses contain <code>all segment</code> or <code>all segments</code>.</li>
+    <li>Lookup is done by normalized segment **Name** or **Description Quote**.</li>
+  </ul>
+
+  <h3>B. Sub-segment Matching (Priority when parentheses are present)</h3>
+  <ul>
+    <li>Triggers when input has parentheses with content other than <code>all segment(s)</code>. The content inside the parentheses is used for the lookup key.</li>
+    <li><strong>Priority 1 (Mapped-First):</strong> Search for an exact match against the sub-segment **Name** AND the entry **Tag is Mapped**.</li>
+    <li><strong>Priority 2 (Renamed-Second):</strong> If Priority 1 fails, search for an exact match against the sub-segment **Description Quote** AND the entry **Tag is Renamed**.</li>
+    <li>If a sub-segment is matched, the corresponding row is highlighted.</li>
+    <li>If **no sub-segment match** is found, the normalized parentheses content attempts to match against the **Segment** list as a final fallback.</li>
+    <li>If still no match, the original parentheses content is returned as an unmatched Sub-segment.</li>
   </ul>
 </section>
 
 <section>
-  <h2>Datasets</h2>
-  <p>Two static datasets are used:</p>
-  <ul>
-    <li><strong>Segments:</strong> List of segments with <code>name</code>, <code>tag</code> (status), and <code>description</code>.</li>
-    <li><strong>Sub-segments:</strong> List of sub-segments with <code>name</code>, <code>tag</code> (status), and <code>description</code>.</li>
-  </ul>
-  <p>Tags include <code>Mapped</code>, <code>Renamed</code>, <code>Remap</code>, and <code>Deleted</code> (excluded from matching).</p>
-</section>
+  <h2>2. Industry & Vertical Processing Rules</h2>
+  <p>This tool enforces a strict rule to ensure data integrity when grouping specific verticals under a broad industry. Input strings must be in the format: <code>Industry Name (Vertical Name)</code>.</p>
 
-<section>
-  <h2>Input Handling Rules</h2>
-  <h3>Segment Matching</h3>
+  <h3>The "All Verticals" Rule (Filtering)</h3>
   <ul>
-    <li>Triggers when input string <em>does not contain parentheses</em>.</li>
-    <li>Also triggers if parentheses are present but content is <code>all segment</code> or <code>all segments</code>.</li>
-    <li>Lookup is done by normalized segment name or description quote.</li>
-  </ul>
-  <h3>Sub-segment Matching</h3>
-  <ul>
-    <li>Triggers when input has parentheses with content other than <code>all segment(s)</code>.</li>
-    <li>Uses the inner parentheses content normalized, matching sub-segment by name or description quote.</li>
-    <li>Supports finding renamed or remapped entries and resolving target names.</li>
-    <li>If no match found, returns the parentheses content as is for sub-segments.</li>
+    <li>If an Industry is listed in the input as **`Industry X (All Verticals)`**, that **Industry** is included in the final results.</li>
+    <li>Crucially, **ANY** other input listing a specific Vertical under **`Industry X`** (e.g., `Industry X (Specific Vertical 1)`) is **automatically discarded** to prevent mixing broad and specific scopes for the same Industry.</li>
+    <li>All remaining specific Verticals (i.e., those not under an "All Verticals" Industry) are collected and deduplicated.</li>
+    <li>The input is split by the delimiter <code>),</code> to correctly process multi-line or complex input strings.</li>
   </ul>
 </section>
 
 <section>
-  <h2>Key Functions</h2>
-  <ul>
-    <li><code>normalizeText(text)</code>: Decodes HTML entities, trims, replaces dashes, lowers case.</li>
-    <li><code>isAllSegmentInParentheses(text)</code>: Returns true if parentheses content is <code>all segment</code> or <code>all segments</code>.</li>
-    <li><code>findByNameOrDescriptionQuote(data, searchText)</code>: Finds matching entry by name or quoted description.</li>
-    <li><code>findRemapTargetName(remapRow, data)</code>: Resolves the target name for remapped items.</li>
-    <li><code>processInput()</code>: Main function to parse input, apply matching logic, highlight rows, and output results.</li>
-  </ul>
-</section>
-
-<section>
-  <h2>Example Input & Expected Behavior</h2>
+  <h2>Example Inputs & Expected Behavior</h2>
   <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
     <thead>
       <tr>
-        <th>Input</th>
-        <th>Matching Type</th>
+        <th>Input String</th>
+        <th>Tool Mode</th>
         <th>Outcome</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td><code>Enterprise Digital Natives</code></td>
-        <td>Segment (no parentheses)</td>
-        <td>Matches and highlights segment "Enterprise Digital Natives".</td>
+        <td><code>Major Commercial</code></td>
+        <td>Segment/Sub-segment</td>
+        <td>Matches Segment **"Major Commercial"**. Output: Upper Majors Commercial. (Renamed rule)</td>
       </tr>
       <tr>
-        <td><code>Majors Growth (all segment)</code></td>
-        <td>Segment (parentheses with 'all segment')</td>
-        <td>Matches segment ignoring parentheses content.</td>
+        <td><code>Digital Natives</code></td>
+        <td>Segment/Sub-segment</td>
+        <td>Matches Segment **"Enterprise Digital Natives"**. Output: Enterprise Digital Natives. (Mapped rule)</td>
       </tr>
       <tr>
-        <td><code>Digital Natives (Mapped)</code></td>
-        <td>Sub-segment (parentheses with content)</td>
-        <td>Matches sub-segment "Digital Natives" by parentheses content.</td>
+        <td><code>Major - Education</code></td>
+        <td>Segment/Sub-segment</td>
+        <td>Matches Sub-segment **"Major - Education"**. Output: Upper Majors - Education. (Renamed rule on Sub-segment)</td>
       </tr>
       <tr>
-        <td><code>SME&C - SMB</code></td>
-        <td>Sub-segment unmatched</td>
-        <td>Displays "Unknown – No match found" for sub-segment.</td>
+        <td><code>Health (All Verticals), Health (Hospitals)</code></td>
+        <td>Industry/Vertical</td>
+        <td>Output: **Industry**: Health. **Vertical**: None. (The specific vertical "Hospitals" is filtered out by the "All Verticals" rule.)</td>
+      </tr>
+      <tr>
+        <td><code>Retail (Fashion), Finance (Banking)</code></td>
+        <td>Industry/Vertical</td>
+        <td>Output: **Industry**: Retail, Finance. **Vertical**: Fashion, Banking.</td>
       </tr>
     </tbody>
   </table>
 </section>
 
 <section>
-  <h2>How to Use</h2>
-  <ol>
-    <li>Enter comma-separated input values into the input textarea.</li>
-    <li>Click the <code>Process</code> button to apply matching logic.</li>
-    <li>View matched segments and sub-segments with visual highlights.</li>
-    <li>Use the <code>Copy Segment Results</code> and <code>Copy Sub-segment Results</code> buttons to copy results for further use.</li>
-  </ol>
+  <h2>Features & Utilities</h2>
+  <ul>
+    <li>**Normalization:** Case-insensitive, HTML entity decoded, and dash-normalized text is used for robust matching.</li>
+    <li>**Visual Feedback:** Matched rows in the static tables are highlighted with a color corresponding to their tag (Mapped, Renamed, etc.).</li>
+    <li>**Output Management:** Final results are deduplicated and can be copied to the clipboard.</li>
+    <li>**Filtering:** Entries marked as <code>Deleted</code> are automatically ignored by the matching logic.</li>
+  </ul>
 </section>
 
 <section>
-  <h2>Limitations & Notes</h2>
-  <ul>
-    <li>Deleted entries are skipped from matching and display.</li>
-    <li>Matching is exact on normalized text or quoted description; no fuzzy matching.</li>
-    <li>Case-insensitive and HTML entity decoded normalization is applied for matching robustness.</li>
-  </ul>
+  <h2>How to Use</h2>
+  <ol>
+    <li>Select the appropriate **tool mode** (Segment or Industry).</li>
+    <li>Enter comma-separated input values into the input textarea.</li>
+    <li>Click the <code>Process</code> button to apply matching logic.</li>
+    <li>View the matched results and use the <code>Copy Results</code> buttons for further use.</li>
+  </ol>
 </section>
 
 <section>
