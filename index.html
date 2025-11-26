@@ -1,20 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Segment & Industry Matching Tools</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div>
-    <img
-      src="https://gifdb.com/images/high/raspberry-tongue-nope-meme-q7lxxw4ws02yrak0.gif"
-      alt="bleh"
-    />
-  </div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Segment & Industry Matching Tools</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <h1>Matching Tools</h1>
+
+    <!-- Toggle Buttons -->
+    <div
+      class="toggle-container"
+      role="radiogroup"
+      aria-label="Select Matching Tool"
+      style="
+        max-width: 750px;
+        margin: 1em auto;
+        display: flex;
+        gap: 1em;
+        justify-content: center;
+      "
+    >
+      <button
+        type="button"
+        id="btnSegmentTool"
+        class="toggle-btn active"
+        aria-pressed="true"
+      >
+        Segment &amp; Sub-segment Tool
+      </button>
+      <button
+        type="button"
+        id="btnIndustryTool"
+        class="toggle-btn"
+        aria-pressed="false"
+      >
+        Industry &amp; Verticals Tool
+      </button>
+    </div>
+
+    <!-- Segment & Sub-segment Tool Section -->
+    <!-- <section
+      id="segmentToolSection"
+      role="region"
+      aria-labelledby="segmentToolHeading"
+      tabindex="0"
+      style="max-width: 750px; margin: 1.5em auto"
+    >
+      <h2 id="segmentToolHeading">Segment &amp; Sub-segment Tool</h2>
+
+      <div class="input-section" aria-label="Segment input section">
+        <label for="userInput" class="input-label"
+          >Enter input from MaSH:</label
+        >
+        <textarea
+          id="userInput"
+          aria-describedby="inputInstructions"
+          placeholder="Paste your inputs here, comma separated"
+          spellcheck="false"
+          class="input-textarea"
+        ></textarea>
+        <small id="inputInstructions" class="input-instruction"
+          >Enter segment or sub-segment names or terms to match.</small
+        >
+        <button
+          id="processButton"
+          aria-label="Process input to match segments and sub-segments"
+          class="process-button"
+        >
+          Match Segments &amp; Sub-segments
+        </button>
+      </div>
+
+      <div class="final-output-container">
+        <section
+          aria-labelledby="finalSubSegmentHeading"
+          class="final-output"
+          id="finalSubSegmentSection"
+        >
+          <h2 id="finalSubSegmentHeading">Final Output - Sub-segments</h2>
+          <div class="result-header">
+            <span id="subSegmentCount">Count: 0</span>
+            <button
+              type="button"
+              id="copySubSegment"
+              aria-label="Copy Sub-segment Results"
+            >
+              Copy
+            </button>
+          </div>
+          <div
+            id="finalSubSegmentOutput"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+        </section>
+
+        <section
+          aria-labelledby="finalSegmentHeading"
+          class="final-output"
+          id="finalSegmentSection"
+        >
+          <h2 id="finalSegmentHeading">Final Output - Segments</h2>
+          <div class="result-header">
+            <span id="segmentCount">Count: 0</span>
+            <button
+              type="button"
+              id="copySegment"
+              aria-label="Copy Segment Results"
+            >
+              Copy
+            </button>
+          </div>
+          <div
+            id="finalSegmentOutput"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+        </section>
+      </div>
+
+      <section aria-labelledby="resultsHeading">
+        <h2 id="resultsHeading">Match Results</h2>
+        <div
+          class="input-list"
+          id="inputList"
+          aria-live="polite"
+          aria-atomic="true"
+          aria-relevant="additions"
+        ></div>
+      </section>
+
+      <section aria-labelledby="segmentsTableHeading" id="segmentsTableSection">
+        <h2 id="segmentsTableHeading">Segments Table</h2>
+        <div id="segmentsTableContainer" aria-label="Segments Table"></div>
+      </section>
+
+      <section
+        aria-labelledby="subSegmentsTableHeading"
+        id="subSegmentsTableSection"
+      >
+        <h2 id="subSegmentsTableHeading">Sub-segments Table</h2>
+        <div
+          id="subSegmentsTableContainer"
+          aria-label="Sub-segments Table"
+        ></div>
+      </section>
+    </section> -->
+
+    <!-- Industry & Verticals Tool Section (initially hidden) -->
+    <section
+      id="industryToolSection"
+      class="hidden"
+      role="region"
+      aria-labelledby="industryToolHeading"
+      tabindex="0"
+      style="max-width: 750px; margin: 1.5em auto"
+    >
+      <h2 id="industryToolHeading">Industry &amp; Verticals Tool</h2>
+
+      <div class="input-section" aria-label="Industry input section">
+        <label for="industryUserInput" class="input-label"
+          >Enter input (Industry / Verticals):</label
+        >
+        <textarea
+          id="industryUserInput"
+          class="input-textarea"
+          placeholder="Paste your industry or vertical inputs here, comma separated"
+          spellcheck="false"
+          aria-describedby="industryInputHelp"
+        ></textarea>
+        <small id="industryInputHelp" class="input-instruction"
+          >Use (All Verticals) for Industry, or specific vertical names in
+          parentheses.</small
+        >
+        <button
+          id="industryProcessButton"
+          class="process-button"
+          aria-label="Match Industry &amp; Verticals"
+        >
+          Match Industry &amp; Verticals
+        </button>
+      </div>
+
+      <div class="final-output-container">
+        <section
+          aria-labelledby="finalVerticalHeading"
+          class="final-output"
+          role="region"
+          tabindex="0"
+        >
+          <h2 id="finalVerticalHeading" class="result-header">
+            Final Output - Verticals
+            <button
+              type="button"
+              id="copyVertical"
+              aria-label="Copy Vertical Results"
+            >
+              Copy
+            </button>
+          </h2>
+          <span id="verticalCount" aria-live="polite" aria-atomic="true"
+            >Count: 0</span
+          >
+          <div
+            id="finalVerticalOutput"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+        </section>
+
+        <section
+          aria-labelledby="finalIndustryHeading"
+          class="final-output"
+          role="region"
+          tabindex="0"
+        >
+          <h2 id="finalIndustryHeading" class="result-header">
+            Final Output - Industry
+            <button
+              type="button"
+              id="copyIndustry"
+              aria-label="Copy Industry Results"
+            >
+              Copy
+            </button>
+          </h2>
+          <span id="industryCount" aria-live="polite" aria-atomic="true"
+            >Count: 0</span
+          >
+          <div
+            id="finalIndustryOutput"
+            aria-live="polite"
+            aria-atomic="true"
+          ></div>
+        </section>
+      </div>
+
+      <section
+        aria-labelledby="industryResultsHeading"
+        style="max-width: 750px; margin: 2rem auto 0"
+      >
+        <h2 id="industryResultsHeading">Match Results</h2>
+        <div
+          id="industryInputList"
+          aria-live="polite"
+          aria-atomic="true"
+          aria-relevant="additions"
+        ></div>
+      </section>
+    </section>
+
+    <script src="script.js"></script>
+    <script>
+      // Toggle logic for switching between tools
+      document.addEventListener("DOMContentLoaded", () => {
+        const btnSegment = document.getElementById("btnSegmentTool");
+        const btnIndustry = document.getElementById("btnIndustryTool");
+        const segmentToolSection =
+          document.getElementById("segmentToolSection");
+        const industryToolSection = document.getElementById(
+          "industryToolSection"
+        );
+
+        function activateSegment() {
+          btnSegment.classList.add("active");
+          btnSegment.setAttribute("aria-pressed", "true");
+          btnIndustry.classList.remove("active");
+          btnIndustry.setAttribute("aria-pressed", "false");
+          segmentToolSection.classList.remove("hidden");
+          industryToolSection.classList.add("hidden");
+        }
+
+        function activateIndustry() {
+          btnIndustry.classList.add("active");
+          btnIndustry.setAttribute("aria-pressed", "true");
+          btnSegment.classList.remove("active");
+          btnSegment.setAttribute("aria-pressed", "false");
+          industryToolSection.classList.remove("hidden");
+          segmentToolSection.classList.add("hidden");
+        }
+
+        btnSegment.addEventListener("click", activateSegment);
+        btnIndustry.addEventListener("click", activateIndustry);
+
+        activateSegment(); // Default to segment tool on load
+      });
+    </script>
+  </body>
 </html>
